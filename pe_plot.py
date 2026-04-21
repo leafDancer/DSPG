@@ -8,7 +8,6 @@ import argparse
 import glob
 import os
 import pickle
-import re
 from pathlib import Path
 
 import matplotlib.pyplot as plt
