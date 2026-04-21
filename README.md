@@ -2,7 +2,7 @@
 
 This repository is the **official implementation** accompanying the **DSPG** (Distribution-based Structural Policy Gradient) paper: the code here is what we use to reproduce the paper’s experiments and numerical results.
 
-**Paper figures and tables:** The [`figures_tables/`](figures_tables/) folder contains the **same materials that appear in the paper** — the exported **figure PDFs** (e.g. training curves, ablation and comparison plots) and the **LaTeX table fragments** actually `\input` in the manuscript (`pe_table.tex`, `pe_table_layout.tex`, plus the hyper-parameter appendix in `hyper-params.tex`). Plotting scripts may write or refresh some of these files when you regenerate results locally.
+**Paper figures and tables:** The [`figures_tables/`](figures_tables/) folder contains the **same materials that appear in the paper** — the exported **figure PDFs** (e.g. training curves, ablation and comparison plots) and the **LaTeX table fragments** actually `\input` in the manuscript (`pe_table.tex`, `pe_table_layout.tex`, plus the hyper-parameter appendix in `hyper-params.tex`). Plotting scripts may write or refresh some of these files when you regenerate results locally. **To quickly reproduce those outputs**, read [`docs/instruction-for-quick-replication.md`](docs/instruction-for-quick-replication.md) first.
 
 Abbreviation **DSPG** stands for **Distribution-based Structural Policy Gradient** (emphasizes cross-sectional distributions over agents, not “distributional RL” over return distributions).
 

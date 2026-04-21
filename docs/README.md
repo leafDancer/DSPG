@@ -7,5 +7,6 @@ This directory extends the root [`README.md`](../README.md) (install and quick s
 | [**Architecture & workflows**](architecture.md) | Repository layout, partial equilibrium (PE) vs general equilibrium (GE), data flow |
 | [**Python modules**](python-modules.md) | Each `dspg/*.py`: purpose, dependencies, typical CLI entry points |
 | [**Notebooks & artifacts**](notebooks-and-artifacts.md) | `dspg/notebooks/`, `results/`, `figures_tables/` |
+| [**Quick replication (figures & tables)**](instruction-for-quick-replication.md) | Which scripts and experiments regenerate `figures_tables/` outputs |
 
-**Suggested reading order:** start with [**architecture.md**](architecture.md), then [**python-modules.md**](python-modules.md) as needed.
+**Suggested reading order:** for a **fast path to reproduce paper figures**, start with [**instruction-for-quick-replication.md**](instruction-for-quick-replication.md). For deeper context, read [**architecture.md**](architecture.md) and [**python-modules.md**](python-modules.md) as needed.
