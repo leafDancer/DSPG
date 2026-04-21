@@ -13,6 +13,8 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
+from dspg.repo_paths import REPO_ROOT
+
 # Two-sided 96% Gaussian multiplier (P in [0.02, 0.98])
 Z_96 = 2.053748910641517
 
@@ -107,8 +109,7 @@ def main():
     if "JAX_PLATFORMS" not in os.environ:
         os.environ["JAX_PLATFORMS"] = "cuda"
 
-    root = Path(__file__).resolve().parent
-    results_dir = (root / args.results_dir).resolve()
+    results_dir = (REPO_ROOT / args.results_dir).resolve()
     pattern = resolve_pattern(results_dir, args.pattern)
     rewards, vfi_gt, meta = load_and_stack_shards(results_dir, pattern)
 

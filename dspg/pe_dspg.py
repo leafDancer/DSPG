@@ -16,6 +16,8 @@ import pickle
 import time
 from pathlib import Path
 
+from dspg.repo_paths import REPO_ROOT
+
 # JAX: use CUDA unless the user already set JAX_PLATFORMS (e.g. cpu for debugging).
 if "JAX_PLATFORMS" not in os.environ:
     os.environ["JAX_PLATFORMS"] = "cuda"
@@ -27,7 +29,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import optax
 
-from pe_rl_env import PEEnv
+from dspg.pe_rl_env import PEEnv
 
 jax.config.update("jax_enable_x64", True)
 
@@ -226,12 +228,12 @@ def main():
 
     a_grid = jnp.geomspace(0.25, a_max - a_min, NA) + a_min - 0.25
 
-    results_dir = Path(__file__).resolve().parent / args.results_dir
+    results_dir = REPO_ROOT / args.results_dir
     results_dir.mkdir(parents=True, exist_ok=True)
     vfi_path = results_dir / VFI_NPZ_NAME
     if not vfi_path.is_file():
         raise FileNotFoundError(
-            f"Missing {vfi_path}. Run `python pe_vfi.py` first to generate VFI bounds and ground-truth utility."
+            f"Missing {vfi_path}. Run `python -m dspg.pe_vfi` first to generate VFI bounds and ground-truth utility."
         )
     vfi_npz = dict(np.load(vfi_path, allow_pickle=False))
     opt_c = jnp.asarray(vfi_npz["opt_c"], dtype=jnp.float64)
@@ -449,7 +451,7 @@ def main():
         else:
             g_warmup = jnp.ones((batch_size, NA, ne)) / (NA * ne)
             print(
-                "Warning: pe_vfi.npz has no ergodic_g; using uniform g for warmup and curve eval. Re-run pe_vfi.py with ergodic_g.",
+                "Warning: pe_vfi.npz has no ergodic_g; using uniform g for warmup and curve eval. Re-run python -m dspg.pe_vfi with ergodic_g.",
                 flush=True,
             )
         final_g = g_warmup

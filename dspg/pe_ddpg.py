@@ -1,13 +1,12 @@
 """
-Soft Actor-Critic (SAC) on pe_rl_env.PEEnv.
+Deep Deterministic Policy Gradient (DDPG) on pe_rl_env.PEEnv.
 
-Mirrors pe_ppo.py structure: same obs (a, e, r, w), same step_train / ergodic Markov eval,
-same logging keys for plot_pe_training_comparison.py.
+Aligned with pe_ppo.py / pe_sac.py: same obs, step_train, ergodic Markov eval, replay + polyak
+targets, and the same pickle keys for plot_pe_training_comparison.py.
 
-Policy: squashed Gaussian to cshare in (0, 1) (tanh + affine) for stable SAC reparameterization;
-PPO uses Beta — eval uses deterministic mean action (tanh(mu) mapped to [0,1]).
-
-Training transitions use PEEnv.reset()-style starts (uniform), same as PPO.
+Actor: deterministic cshare in (0, 1) via 0.5*(tanh(z)+1). Exploration: Gaussian noise on the
+deterministic action (linear decay of std over training). Twin Q critics; TD target uses min
+of the two target Qs; actor maximizes Q1(s, pi(s)).
 """
 from __future__ import annotations
 
@@ -16,6 +15,8 @@ import os
 import pickle
 import time
 from pathlib import Path
+
+from dspg.repo_paths import REPO_ROOT
 
 if "JAX_PLATFORMS" not in os.environ:
     os.environ["JAX_PLATFORMS"] = "cuda"
@@ -27,14 +28,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import optax
 
-from pe_rl_env import PEEnv
+from dspg.pe_rl_env import PEEnv
 
 jax.config.update("jax_enable_x64", True)
 
 VFI_NPZ_NAME = "pe_vfi.npz"
 DEFAULT_CUDA = "5"
-LOG_STD_MIN = -20.0
-LOG_STD_MAX = 2.0
 
 
 def set_static_styles():
@@ -103,16 +102,13 @@ def eval_ergodic_markov_prices(
     n_paths: int,
     rng: np.random.Generator,
 ) -> float:
-    """(a,e) from VFI ergodic_g; (r,w) Markov — deterministic mean cshare from actor."""
     T = int(env.T)
     beta = float(env.beta)
     disc = np.power(beta, np.arange(T, dtype=np.float64))
 
     @jax.jit
-    def policy_mean_cshare(obs_norm: jnp.ndarray) -> jnp.ndarray:
-        mu, _ = actor_apply(actor_params, obs_norm[None, :])
-        z = mu[0]
-        return 0.5 * (jnp.tanh(z) + 1.0)
+    def policy_det_cshare(obs_norm: jnp.ndarray) -> jnp.ndarray:
+        return actor_apply(actor_params, obs_norm[None, :])[0]
 
     total = 0.0
     for _ in range(n_paths):
@@ -125,7 +121,7 @@ def eval_ergodic_markov_prices(
             ep, a, eidx, ridx, widx = state
             obs = env._gen_obs(a, eidx, ridx, widx)
             on = normalize_obs(obs.astype(np.float64), env)
-            cshare = float(policy_mean_cshare(jnp.asarray(on)))
+            cshare = float(policy_det_cshare(jnp.asarray(on)))
             state, _, u, trunc = step_train(state, cshare, env, rng)
             u_path[t] = u
             if trunc:
@@ -135,12 +131,10 @@ def eval_ergodic_markov_prices(
 
 
 def make_actor(obs_dim: int, hidden: int):
-    def actor(obs: jnp.ndarray) -> tuple[jnp.ndarray, jnp.ndarray]:
+    def actor(obs: jnp.ndarray) -> jnp.ndarray:
         h = hk.nets.MLP([hidden, hidden], activation=jax.nn.relu, name="actor_body")(obs)
-        mu = hk.Linear(1, name="mu")(h)[:, 0]
-        log_std = hk.Linear(1, name="log_std")(h)[:, 0]
-        log_std = jnp.clip(log_std, LOG_STD_MIN, LOG_STD_MAX)
-        return mu, log_std
+        z = hk.Linear(1, name="pre_tanh")(h)[:, 0]
+        return 0.5 * (jnp.tanh(z) + 1.0)
 
     return hk.transform(actor)
 
@@ -154,31 +148,15 @@ def make_q_net(obs_dim: int, hidden: int):
     return hk.transform(qnet)
 
 
-def sample_squashed_action(
-    key: jax.Array, mu: jnp.ndarray, log_std: jnp.ndarray
-) -> tuple[jnp.ndarray, jnp.ndarray]:
-    """z ~ N(mu, std), a = 0.5*(tanh(z)+1) in (0,1); returns (a, log_pi)."""
-    std = jnp.exp(log_std)
-    eps = jax.random.normal(key, mu.shape)
-    z = mu + std * eps
-    a = 0.5 * (jnp.tanh(z) + 1.0)
-    a = jnp.clip(a, 1e-6, 1.0 - 1e-6)
-    log_pz = -0.5 * jnp.log(2 * jnp.pi) - log_std - 0.5 * ((z - mu) / std) ** 2
-    log_det = jnp.log(0.5 + 1e-8) + jnp.log(1.0 - jnp.tanh(z) ** 2 + 1e-6)
-    log_pi = log_pz - log_det
-    return a, log_pi
-
-
-def collect_rollout_sac(
+def collect_rollout_ddpg(
     actor_apply,
     actor_params,
     env: PEEnv,
     n_envs: int,
     horizon: int,
     rng: np.random.Generator,
-    jax_key: jax.Array,
+    noise_std: float,
 ) -> dict:
-    """Same vectorized rollout as PPO; actions from SAC policy sample."""
     obs_l, act_l, rew_l, next_obs_n_l, done_l = [], [], [], [], []
     states = []
     obss = []
@@ -187,22 +165,13 @@ def collect_rollout_sac(
         states.append(st)
         obss.append(np.asarray(obs, dtype=np.float64))
 
-    key = jax_key
-
     for _ in range(horizon):
-        key, sk = jax.random.split(key)
-        keys = jax.random.split(sk, n_envs)
         obs_arr = np.stack(obss, axis=0)
         obs_n = normalize_obs(obs_arr, env)
         obs_j = jnp.asarray(obs_n)
-
-        def sample_one(obs_i, k):
-            mu, log_std = actor_apply(actor_params, obs_i[None, :])
-            a, lp = sample_squashed_action(k, mu[0], log_std[0])
-            return a, lp
-
-        xs, _lps = jax.vmap(sample_one)(obs_j, keys)
-        xs = np.asarray(xs)
+        mu = np.asarray(actor_apply(actor_params, obs_j))
+        noise = rng.normal(0.0, noise_std, size=mu.shape)
+        xs = np.clip(mu + noise, 1e-6, 1.0 - 1e-6).astype(np.float64)
 
         rew_t = []
         done_t = []
@@ -305,34 +274,40 @@ def main():
         "--tau",
         type=float,
         default=0.005,
-        help="Soft update coefficient for target Q networks.",
+        help="Soft update for target actor and target Q networks.",
     )
-    parser.add_argument("--alpha", type=float, default=0.2, help="SAC entropy temperature.")
+    parser.add_argument(
+        "--noise_sigma_init",
+        type=float,
+        default=0.1,
+        help="Gaussian exploration noise std on cshare (linearly decays to noise_sigma_final).",
+    )
+    parser.add_argument(
+        "--noise_sigma_final",
+        type=float,
+        default=0.02,
+        help="Exploration noise std at end of training.",
+    )
     parser.add_argument("--buffer_size", type=int, default=500_000)
     parser.add_argument("--batch_size", type=int, default=256)
     parser.add_argument(
         "--grad_steps",
         type=int,
         default=80,
-        help="Gradient steps per PPO-equivalent update (after buffer warm-up).",
+        help="Gradient steps per update after buffer warm-up.",
     )
     parser.add_argument(
         "--learning_starts",
         type=int,
         default=5000,
-        help="Min transitions in buffer before first SAC gradient update.",
+        help="Min transitions before first gradient update.",
     )
-    parser.add_argument(
-        "--eval_paths",
-        type=int,
-        default=4096,
-        help="MC paths for post-train eval (ergodic a,e + Markov r,w).",
-    )
+    parser.add_argument("--eval_paths", type=int, default=4096)
     parser.add_argument(
         "--log_ergodic_eval_paths",
         type=int,
         default=256,
-        help="Each progress print: ergodic eval paths (0=skip).",
+        help="Ergodic eval paths at each log (0=skip).",
     )
     parser.add_argument("--skip_plot", action="store_true")
     args = parser.parse_args()
@@ -348,11 +323,11 @@ def main():
     env = PEEnv()
     gamma = float(env.beta) if args.gamma is None else float(args.gamma)
 
-    results_dir = Path(__file__).resolve().parent / args.results_dir
+    results_dir = REPO_ROOT / args.results_dir
     results_dir.mkdir(parents=True, exist_ok=True)
     vfi_path = results_dir / VFI_NPZ_NAME
     if not vfi_path.is_file():
-        raise FileNotFoundError(f"Need {vfi_path} (ergodic_g, a_grid). Run pe_vfi.py first.")
+        raise FileNotFoundError(f"Need {vfi_path} (ergodic_g, a_grid). run python -m dspg.pe_vfi first.")
 
     vfi = dict(np.load(vfi_path, allow_pickle=False))
     if "ergodic_g" not in vfi or "a_grid" not in vfi:
@@ -385,63 +360,62 @@ def main():
     def q2_apply(p, obs, act):
         return q2.apply(p, None, obs, act)
 
-    alpha_sac = float(args.alpha)
-    tau_sac = float(args.tau)
+    tau_ddpg = float(args.tau)
 
     @jax.jit
-    def sac_step(actor_p, q1_p, q2_p, tq1_p, tq2_p, opt_a, opt_q1, opt_q2, batch_o, rng_step):
-        """Critic (TD on min twin Q target + entropy), then actor, then polyak target update."""
+    def ddpg_step(actor_p, q1_p, q2_p, ta_p, tq1_p, tq2_p, opt_a, opt_q1, opt_q2, batch_o):
         o, a, r, no, d = batch_o
-        k1, k2 = jax.random.split(rng_step)
+        a_t = actor_apply(ta_p, no)
+        q1_nt = q1_apply(tq1_p, no, a_t)
+        q2_nt = q2_apply(tq2_p, no, a_t)
+        y = r + (1.0 - d) * gamma * jnp.minimum(q1_nt, q2_nt)
+        y = jax.lax.stop_gradient(y)
 
-        mu_n, log_std_n = actor_apply(actor_p, no)
-        keys_n = jax.random.split(k1, o.shape[0])
-        a_n, log_pi_n = jax.vmap(sample_squashed_action)(keys_n, mu_n, log_std_n)
-        q1_nt = q1_apply(tq1_p, no, a_n)
-        q2_nt = q2_apply(tq2_p, no, a_n)
-        min_q_n = jnp.minimum(q1_nt, q2_nt)
-        y = r + (1.0 - d) * gamma * jax.lax.stop_gradient(min_q_n - alpha_sac * log_pi_n)
-
-        def loss_q_only(q1p, q2p):
+        def loss_q(q1p, q2p):
             q1_c = q1_apply(q1p, o, a)
             q2_c = q2_apply(q2p, o, a)
             return jnp.mean((q1_c - y) ** 2 + (q2_c - y) ** 2)
 
-        gq1, gq2 = jax.grad(loss_q_only, argnums=(0, 1))(q1_p, q2_p)
+        gq1, gq2 = jax.grad(loss_q, argnums=(0, 1))(q1_p, q2_p)
         u1, opt_q1_n = tx.update(gq1, opt_q1, q1_p)
         q1_p_n = optax.apply_updates(q1_p, u1)
         u2, opt_q2_n = tx.update(gq2, opt_q2, q2_p)
         q2_p_n = optax.apply_updates(q2_p, u2)
 
-        def loss_pi_only(ap):
-            mu, log_std = actor_apply(ap, o)
-            keys_p = jax.random.split(k2, o.shape[0])
-            a_pi, log_pi = jax.vmap(sample_squashed_action)(keys_p, mu, log_std)
-            q1_pi = q1_apply(q1_p_n, o, a_pi)
-            q2_pi = q2_apply(q2_p_n, o, a_pi)
-            return jnp.mean(alpha_sac * log_pi - jnp.minimum(q1_pi, q2_pi))
+        def loss_a(ap):
+            mu_o = actor_apply(ap, o)
+            return -jnp.mean(q1_apply(q1_p_n, o, mu_o))
 
-        ga = jax.grad(loss_pi_only)(actor_p)
+        ga = jax.grad(loss_a)(actor_p)
         ua, opt_a_n = tx.update(ga, opt_a, actor_p)
         actor_p_n = optax.apply_updates(actor_p, ua)
 
+        ta_n = jax.tree_util.tree_map(
+            lambda t, p: tau_ddpg * p + (1.0 - tau_ddpg) * t, ta_p, actor_p_n
+        )
         tq1_n = jax.tree_util.tree_map(
-            lambda t, p: tau_sac * p + (1.0 - tau_sac) * t, tq1_p, q1_p_n
+            lambda t, p: tau_ddpg * p + (1.0 - tau_ddpg) * t, tq1_p, q1_p_n
         )
         tq2_n = jax.tree_util.tree_map(
-            lambda t, p: tau_sac * p + (1.0 - tau_sac) * t, tq2_p, q2_p_n
+            lambda t, p: tau_ddpg * p + (1.0 - tau_ddpg) * t, tq2_p, q2_p_n
         )
-        return actor_p_n, q1_p_n, q2_p_n, tq1_n, tq2_n, opt_a_n, opt_q1_n, opt_q2_n
+        return actor_p_n, q1_p_n, q2_p_n, ta_n, tq1_n, tq2_n, opt_a_n, opt_q1_n, opt_q2_n
+
+    def noise_std_for_update(upd: int) -> float:
+        if args.total_updates <= 1:
+            return float(args.noise_sigma_final)
+        t = upd / float(args.total_updates - 1)
+        return (1.0 - t) * args.noise_sigma_init + t * args.noise_sigma_final
 
     def run_one_repeat(rep: int) -> None:
         rep_seed = int(args.seed + rep)
         rng = np.random.default_rng(rep_seed)
-        key = jax.random.PRNGKey(rep_seed)
-        k1, k2, k3, key = jax.random.split(key, 4)
+        k1, k2, k3 = jax.random.split(jax.random.PRNGKey(rep_seed), 3)
         obs0 = jnp.zeros((1, obs_dim))
         actor_p = actor.init(k1, obs0)
         q1_p = q1.init(k2, obs0, jnp.zeros((1,)))
         q2_p = q2.init(k3, obs0, jnp.zeros((1,)))
+        ta_p = jax.tree_util.tree_map(lambda x: x + 0.0, actor_p)
         tq1_p = jax.tree_util.tree_map(lambda x: x + 0.0, q1_p)
         tq2_p = jax.tree_util.tree_map(lambda x: x + 0.0, q2_p)
 
@@ -457,15 +431,15 @@ def main():
         curve_log_update_idx: list[int] = []
 
         print(
-            f"=== SAC repeat {rep + 1}/{args.repeats} (seed={rep_seed}) ===",
+            f"=== DDPG repeat {rep + 1}/{args.repeats} (seed={rep_seed}) ===",
             flush=True,
         )
 
         t0 = time.time()
         for upd in range(args.total_updates):
-            key, sk = jax.random.split(key)
-            data = collect_rollout_sac(
-                actor_apply, actor_p, env, args.n_envs, args.horizon, rng, sk
+            sig = noise_std_for_update(upd)
+            data = collect_rollout_ddpg(
+                actor_apply, actor_p, env, args.n_envs, args.horizon, rng, sig
             )
             H, N = data["rewards"].shape
             o_flat = data["obs"].reshape(-1, obs_dim)
@@ -494,18 +468,17 @@ def main():
                         jnp.asarray(bno),
                         jnp.asarray(bd),
                     )
-                    key, skg = jax.random.split(key)
-                    actor_p, q1_p, q2_p, tq1_p, tq2_p, opt_a, opt_q1, opt_q2 = sac_step(
+                    actor_p, q1_p, q2_p, ta_p, tq1_p, tq2_p, opt_a, opt_q1, opt_q2 = ddpg_step(
                         actor_p,
                         q1_p,
                         q2_p,
+                        ta_p,
                         tq1_p,
                         tq2_p,
                         opt_a,
                         opt_q1,
                         opt_q2,
                         batch_o,
-                        skg,
                     )
 
             log_now = (upd + 1) % log_interval == 0 or upd == 0
@@ -527,13 +500,13 @@ def main():
                 print(
                     f"update {upd + 1}/{args.total_updates}  "
                     f"rollout_tail_disc (reset~uniform, H={args.horizon}): {curve_disc_return[-1]:.4f}  "
-                    f"mean_step_u {curve_mean_reward[-1]:.4f}"
+                    f"mean_step_u {curve_mean_reward[-1]:.4f}  noise_std {sig:.4f}"
                     f"{erg_line}",
                     flush=True,
                 )
 
         train_time = time.time() - t0
-        print(f"SAC training wall time: {train_time:.1f}s", flush=True)
+        print(f"DDPG training wall time: {train_time:.1f}s", flush=True)
 
         eval_rng = np.random.default_rng(rep_seed + 999)
         mean_u_eval = eval_ergodic_markov_prices(
@@ -550,13 +523,10 @@ def main():
             f"mean discounted utility (T={env.T}): {mean_u_eval:.6f}",
             flush=True,
         )
-        print(
-            f"VFI npz mean_discounted_utility: {vfi_gt_u:.6f}",
-            flush=True,
-        )
+        print(f"VFI npz mean_discounted_utility: {vfi_gt_u:.6f}", flush=True)
 
         tag = (
-            f"pe_sac_H{args.horizon}_E{args.n_envs}_U{args.total_updates}_lr{args.lr:.2E}"
+            f"pe_ddpg_H{args.horizon}_E{args.n_envs}_U{args.total_updates}_lr{args.lr:.2E}"
             f"_R{args.repeats}_rep{rep}_s{rep_seed}"
         )
         pkl_path = results_dir / f"{tag}.pkl"
@@ -582,15 +552,16 @@ def main():
                         "base_seed": args.seed,
                         "repeat_index": rep,
                         "repeats": args.repeats,
-                        "algorithm": "SAC",
-                        "policy": "squashed_Gaussian_cshare",
+                        "algorithm": "DDPG",
+                        "policy": "deterministic_tanh_cshare",
                         "total_updates": args.total_updates,
                         "n_envs": args.n_envs,
                         "rollout_horizon": args.horizon,
                         "lr": args.lr,
                         "gamma": gamma,
                         "tau": args.tau,
-                        "alpha_entropy": args.alpha,
+                        "noise_sigma_init": args.noise_sigma_init,
+                        "noise_sigma_final": args.noise_sigma_final,
                         "buffer_size": args.buffer_size,
                         "batch_size": args.batch_size,
                         "grad_steps_per_update": args.grad_steps,
@@ -608,7 +579,7 @@ def main():
                         "post_train_eval_r_w": "markov (r_trans, w_trans) like PEEnv",
                         "pe_env_T": int(env.T),
                         "obs_space": "(a, e_level, r_level, w_level)",
-                        "action": "cshare in (0,1) squashed Gaussian",
+                        "action": "cshare in (0,1) deterministic + Gaussian exploration",
                     },
                     "train_wall_time_s": train_time,
                 },
@@ -638,12 +609,12 @@ def main():
                 y=mean_u_eval,
                 color="C1",
                 linestyle=":",
-                label=f"SAC final ergodic eval ({args.eval_paths} paths)",
+                label=f"DDPG final ergodic eval ({args.eval_paths} paths)",
             )
-            ax.set_xlabel("SAC update")
+            ax.set_xlabel("DDPG update")
             ax.set_ylabel("Utility / return")
             ax.set_title(
-                f"PEEnv SAC repeat {rep + 1}/{args.repeats} (seed={rep_seed}) vs VFI"
+                f"PEEnv DDPG repeat {rep + 1}/{args.repeats} (seed={rep_seed}) vs VFI"
             )
             ax.grid(True, alpha=0.3)
             ax.legend(loc="best")

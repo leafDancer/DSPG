@@ -1,12 +1,21 @@
 """
-Deep Deterministic Policy Gradient (DDPG) on pe_rl_env.PEEnv.
+Simple PPO on pe_rl_env.PEEnv.
 
-Aligned with pe_ppo.py / pe_sac.py: same obs, step_train, ergodic Markov eval, replay + polyak
-targets, and the same pickle keys for plot_pe_training_comparison.py.
+Policy I/O (per user spec):
+  - Input: low-dimensional continuous (a, e, r, w) — same 4 numbers as PEEnv._gen_obs
+    (assets, productivity level, interest rate, wage factor), not one-hot indices.
+  - Output: consumption share cshare in [0, 1], sampled from a Beta head (mean Beta used in post-train eval).
 
-Actor: deterministic cshare in (0, 1) via 0.5*(tanh(z)+1). Exploration: Gaussian noise on the
-deterministic action (linear decay of std over training). Twin Q critics; TD target uses min
-of the two target Qs; actor maximizes Q1(s, pi(s)).
+After training, evaluates mean discounted utility over T steps: initial (a,e) from VFI ergodic_g on
+(NA, ne); initial (r,w) uniform on discrete states; then the same Markov transitions as PEEnv
+(r_trans, w_trans, e_trans). This matches the environment dynamics (not the pe_vfi MC eval window
+where r,w are IID uniform).
+
+Training log metric `mean_disc_return_tail` (stored as curve_mean_discounted_return_per_update):
+  For each parallel env, backward discounted sum over the *current rollout window* of length H
+  (not necessarily a full episode of T; episodes reset on trunc). Initial states come from
+  PEEnv.reset(): a ~ Uniform[a_min,a_max], e,r,w each uniform on discrete indices — NOT ergodic_g.
+  Printed alongside an ergodic-based eval (fewer MC paths) when --log_ergodic_eval_paths > 0.
 """
 from __future__ import annotations
 
@@ -15,6 +24,8 @@ import os
 import pickle
 import time
 from pathlib import Path
+
+from dspg.repo_paths import REPO_ROOT
 
 if "JAX_PLATFORMS" not in os.environ:
     os.environ["JAX_PLATFORMS"] = "cuda"
@@ -26,7 +37,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import optax
 
-from pe_rl_env import PEEnv
+from dspg.pe_rl_env import PEEnv
 
 jax.config.update("jax_enable_x64", True)
 
@@ -49,7 +60,28 @@ def set_static_styles():
     )
 
 
+def beta_log_prob(x: jnp.ndarray, a: jnp.ndarray, b: jnp.ndarray) -> jnp.ndarray:
+    from jax.scipy.special import betaln
+
+    x = jnp.clip(x, 1e-6, 1.0 - 1e-6)
+    return (a - 1.0) * jnp.log(x) + (b - 1.0) * jnp.log(1.0 - x) - betaln(a, b)
+
+
+def make_networks(obs_dim: int, hidden: int):
+    def actor_critic(obs: jnp.ndarray) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+        """obs (B,4) -> Beta alpha, Beta beta (both >0), value (B,)."""
+        h = hk.nets.MLP([hidden, hidden], activation=jax.nn.tanh, name="shared")(obs)
+        raw = hk.Linear(2, name="actor_head")(h)
+        alpha = jax.nn.softplus(raw[:, 0]) + 1.0
+        beta_p = jax.nn.softplus(raw[:, 1]) + 1.0
+        v = hk.Linear(1, name="critic")(h)[:, 0]
+        return alpha, beta_p, v
+
+    return hk.transform(actor_critic)
+
+
 def normalize_obs(obs: np.ndarray, env: PEEnv) -> np.ndarray:
+    """Rough scale to O(1) for (a, e, r, w)."""
     scale = np.asarray(
         [env.a_max - env.a_min + 1e-12, 2.5, 0.035, 0.15], dtype=np.float64
     )
@@ -64,6 +96,7 @@ def utility_from_c(c: float, env: PEEnv) -> float:
 
 
 def step_train(state, cshare: float, env: PEEnv, rng: np.random.Generator):
+    """One PEEnv transition (Markov r, w). state = (ep, a, eidx, ridx, widx)."""
     ep, a, eidx, ridx, widx = state
     wealth = (1.0 + env.r_grid[ridx]) * a + env.e_grid[eidx] * env.w_grid[widx]
     c = np.clip(wealth * np.clip(cshare, 0.0, 1.0), env.c_min, wealth - env.c_min)
@@ -82,6 +115,7 @@ def step_train(state, cshare: float, env: PEEnv, rng: np.random.Generator):
 def sample_initial_from_ergodic(
     g: np.ndarray, a_grid: np.ndarray, rng: np.random.Generator
 ) -> tuple[float, int]:
+    """g shape (NA, ne), flat categorical -> continuous a on a_grid, e index."""
     na, ne = g.shape
     flat = g.reshape(-1)
     flat = flat / (np.sum(flat) + 1e-20)
@@ -92,21 +126,23 @@ def sample_initial_from_ergodic(
 
 
 def eval_ergodic_markov_prices(
-    actor_apply,
-    actor_params,
+    apply_fn,
+    params,
     env: PEEnv,
     g_erg: np.ndarray,
     a_grid: np.ndarray,
     n_paths: int,
     rng: np.random.Generator,
 ) -> float:
+    """(a,e) from VFI ergodic_g; (r,w) Markov via r_trans, w_trans (same as PEEnv.step)."""
     T = int(env.T)
     beta = float(env.beta)
     disc = np.power(beta, np.arange(T, dtype=np.float64))
 
     @jax.jit
-    def policy_det_cshare(obs_norm: jnp.ndarray) -> jnp.ndarray:
-        return actor_apply(actor_params, obs_norm[None, :])[0]
+    def policy_mean_cshare(obs_norm: jnp.ndarray) -> jnp.ndarray:
+        a, b, _ = apply_fn(params, obs_norm[None, :])
+        return a[0] / (a[0] + b[0])
 
     total = 0.0
     for _ in range(n_paths):
@@ -119,7 +155,7 @@ def eval_ergodic_markov_prices(
             ep, a, eidx, ridx, widx = state
             obs = env._gen_obs(a, eidx, ridx, widx)
             on = normalize_obs(obs.astype(np.float64), env)
-            cshare = float(policy_det_cshare(jnp.asarray(on)))
+            cshare = float(policy_mean_cshare(jnp.asarray(on)))
             state, _, u, trunc = step_train(state, cshare, env, rng)
             u_path[t] = u
             if trunc:
@@ -128,34 +164,17 @@ def eval_ergodic_markov_prices(
     return total / n_paths
 
 
-def make_actor(obs_dim: int, hidden: int):
-    def actor(obs: jnp.ndarray) -> jnp.ndarray:
-        h = hk.nets.MLP([hidden, hidden], activation=jax.nn.relu, name="actor_body")(obs)
-        z = hk.Linear(1, name="pre_tanh")(h)[:, 0]
-        return 0.5 * (jnp.tanh(z) + 1.0)
-
-    return hk.transform(actor)
-
-
-def make_q_net(obs_dim: int, hidden: int):
-    def qnet(obs: jnp.ndarray, act: jnp.ndarray) -> jnp.ndarray:
-        x = jnp.concatenate([obs, act[:, None]], axis=-1)
-        h = hk.nets.MLP([hidden, hidden], activation=jax.nn.relu, name="q_body")(x)
-        return hk.Linear(1, name="q")(h)[:, 0]
-
-    return hk.transform(qnet)
-
-
-def collect_rollout_ddpg(
-    actor_apply,
-    actor_params,
+def collect_rollout(
+    apply_fn,
+    params,
     env: PEEnv,
     n_envs: int,
     horizon: int,
     rng: np.random.Generator,
-    noise_std: float,
+    jax_key: jax.Array,
 ) -> dict:
-    obs_l, act_l, rew_l, next_obs_n_l, done_l = [], [], [], [], []
+    """Vectorized env rollout; horizon steps (may span trunc). Reset on trunc."""
+    obs_l, act_l, rew_l, val_l, logp_l, done_l = [], [], [], [], [], []
     states = []
     obss = []
     for _ in range(n_envs):
@@ -163,86 +182,94 @@ def collect_rollout_ddpg(
         states.append(st)
         obss.append(np.asarray(obs, dtype=np.float64))
 
+    key = jax_key
+
     for _ in range(horizon):
+        key, sk = jax.random.split(key)
+        keys = jax.random.split(sk, n_envs)
         obs_arr = np.stack(obss, axis=0)
         obs_n = normalize_obs(obs_arr, env)
         obs_j = jnp.asarray(obs_n)
-        mu = np.asarray(actor_apply(actor_params, obs_j))
-        noise = rng.normal(0.0, noise_std, size=mu.shape)
-        xs = np.clip(mu + noise, 1e-6, 1.0 - 1e-6).astype(np.float64)
 
-        rew_t = []
-        done_t = []
-        next_obs_n = []
-        new_obss = []
-        for i in range(n_envs):
-            ns, o, u, trunc = step_train(states[i], float(xs[i]), env, rng)
-            rew_t.append(u)
-            done_t.append(float(trunc))
-            no = normalize_obs(np.asarray(o, dtype=np.float64), env)
-            if trunc:
-                ns, o = env.reset()
-                no = normalize_obs(np.asarray(o, dtype=np.float64), env)
-            states[i] = ns
-            new_obss.append(np.asarray(o, dtype=np.float64))
-            next_obs_n.append(no)
+        def sample_one(obs_i, k):
+            a, b, v = apply_fn(params, obs_i[None, :])
+            a0, b0 = a[0], b[0]
+            x = jax.random.beta(k, a0, b0)
+            lp = beta_log_prob(x, a0, b0)
+            return x, lp, v[0]
+
+        xs, lps, vs = jax.vmap(sample_one)(obs_j, keys)
+
+        xs = np.asarray(xs)
+        lps = np.asarray(lps)
+        vs = np.asarray(vs)
 
         obs_l.append(obs_n.copy())
         act_l.append(xs.copy())
-        rew_l.append(np.asarray(rew_t, dtype=np.float64))
-        next_obs_n_l.append(np.stack(next_obs_n, axis=0))
-        done_l.append(np.asarray(done_t, dtype=np.float64))
+        rew_l.append([])
+        val_l.append(vs.copy())
+        logp_l.append(lps.copy())
+        done_l.append([])
+
+        new_obss = []
+        rews_t = []
+        dones_t = []
+        for i in range(n_envs):
+            ns, o, u, trunc = step_train(states[i], float(xs[i]), env, rng)
+            rews_t.append(u)
+            dones_t.append(trunc)
+            if trunc:
+                ns, o = env.reset()
+            states[i] = ns
+            new_obss.append(np.asarray(o, dtype=np.float64))
+        rew_l[-1] = np.asarray(rews_t)
+        done_l[-1] = np.asarray(dones_t, dtype=np.float64)
         obss = new_obss
 
     return {
         "obs": np.stack(obs_l, axis=0),
         "actions": np.stack(act_l, axis=0),
         "rewards": np.stack(rew_l, axis=0),
-        "next_obs": np.stack(next_obs_n_l, axis=0),
+        "values": np.stack(val_l, axis=0),
+        "log_probs": np.stack(logp_l, axis=0),
         "dones": np.stack(done_l, axis=0),
+        "last_obs": normalize_obs(np.stack(obss), env),
     }
 
 
-class ReplayBuffer:
-    def __init__(self, cap: int, obs_dim: int):
-        self.cap = int(cap)
-        self.obs_dim = obs_dim
-        self.obs = np.zeros((cap, obs_dim), dtype=np.float64)
-        self.next_obs = np.zeros((cap, obs_dim), dtype=np.float64)
-        self.act = np.zeros((cap,), dtype=np.float64)
-        self.rew = np.zeros((cap,), dtype=np.float64)
-        self.done = np.zeros((cap,), dtype=np.float64)
-        self.ptr = 0
-        self.size = 0
+def compute_gae(
+    rewards: np.ndarray,
+    values: np.ndarray,
+    dones: np.ndarray,
+    last_value: np.ndarray,
+    gamma: float,
+    lam: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """rewards, values, dones: (H, N). last_value: (N,) = V(s_first step after horizon)."""
+    H, N = rewards.shape
+    adv = np.zeros_like(rewards)
+    last_gae = np.zeros(N, dtype=np.float64)
+    for t in reversed(range(H)):
+        v_sp1 = last_value if t == H - 1 else values[t + 1]
+        m = 1.0 - dones[t]
+        delta = rewards[t] + gamma * v_sp1 * m - values[t]
+        last_gae = delta + gamma * lam * m * last_gae
+        adv[t] = last_gae
+    ret = adv + values
+    return adv, ret
 
-    def add_batch(
-        self,
-        o: np.ndarray,
-        a: np.ndarray,
-        r: np.ndarray,
-        no: np.ndarray,
-        d: np.ndarray,
-    ) -> None:
-        n = o.shape[0]
-        for i in range(n):
-            j = self.ptr
-            self.obs[j] = o[i]
-            self.act[j] = a[i]
-            self.rew[j] = r[i]
-            self.next_obs[j] = no[i]
-            self.done[j] = d[i]
-            self.ptr = (self.ptr + 1) % self.cap
-            self.size = min(self.size + 1, self.cap)
 
-    def sample(self, rng: np.random.Generator, batch: int) -> tuple[np.ndarray, ...]:
-        idx = rng.integers(0, self.size, size=batch)
-        return (
-            self.obs[idx],
-            self.act[idx],
-            self.rew[idx],
-            self.next_obs[idx],
-            self.done[idx],
-        )
+def beta_entropy(a_p: jnp.ndarray, b_p: jnp.ndarray) -> jnp.ndarray:
+    """Mean differential entropy of Beta(a,b)."""
+    from jax.scipy.special import betaln, digamma
+
+    apb = a_p + b_p
+    return jnp.mean(
+        betaln(a_p, b_p)
+        - (a_p - 1.0) * digamma(a_p)
+        - (b_p - 1.0) * digamma(b_p)
+        + (apb - 2.0) * digamma(apb)
+    )
 
 
 def main():
@@ -264,48 +291,27 @@ def main():
         help="Progress print + ergodic eval every N updates (default: total_updates//10).",
     )
     parser.add_argument("--n_envs", type=int, default=32)
-    parser.add_argument("--horizon", type=int, default=64)
+    parser.add_argument("--horizon", type=int, default=64, help="Steps per rollout (env may reset on trunc).")
     parser.add_argument("--hidden", type=int, default=128)
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--gamma", type=float, default=None, help="Default: env.beta")
+    parser.add_argument("--lam", type=float, default=0.95)
+    parser.add_argument("--clip_eps", type=float, default=0.2)
+    parser.add_argument("--ppo_epochs", type=int, default=10)
+    parser.add_argument("--minibatch", type=int, default=256)
+    parser.add_argument("--vf_coef", type=float, default=0.5)
+    parser.add_argument("--ent_coef", type=float, default=0.01)
     parser.add_argument(
-        "--tau",
-        type=float,
-        default=0.005,
-        help="Soft update for target actor and target Q networks.",
-    )
-    parser.add_argument(
-        "--noise_sigma_init",
-        type=float,
-        default=0.1,
-        help="Gaussian exploration noise std on cshare (linearly decays to noise_sigma_final).",
-    )
-    parser.add_argument(
-        "--noise_sigma_final",
-        type=float,
-        default=0.02,
-        help="Exploration noise std at end of training.",
-    )
-    parser.add_argument("--buffer_size", type=int, default=500_000)
-    parser.add_argument("--batch_size", type=int, default=256)
-    parser.add_argument(
-        "--grad_steps",
+        "--eval_paths",
         type=int,
-        default=80,
-        help="Gradient steps per update after buffer warm-up.",
+        default=4096,
+        help="MC paths for post-train eval (ergodic a,e + Markov r,w).",
     )
-    parser.add_argument(
-        "--learning_starts",
-        type=int,
-        default=5000,
-        help="Min transitions before first gradient update.",
-    )
-    parser.add_argument("--eval_paths", type=int, default=4096)
     parser.add_argument(
         "--log_ergodic_eval_paths",
         type=int,
         default=256,
-        help="Ergodic eval paths at each log (0=skip).",
+        help="Each progress print: also run ergodic (a,e) eval with this many paths (0=skip).",
     )
     parser.add_argument("--skip_plot", action="store_true")
     args = parser.parse_args()
@@ -321,11 +327,11 @@ def main():
     env = PEEnv()
     gamma = float(env.beta) if args.gamma is None else float(args.gamma)
 
-    results_dir = Path(__file__).resolve().parent / args.results_dir
+    results_dir = REPO_ROOT / args.results_dir
     results_dir.mkdir(parents=True, exist_ok=True)
     vfi_path = results_dir / VFI_NPZ_NAME
     if not vfi_path.is_file():
-        raise FileNotFoundError(f"Need {vfi_path} (ergodic_g, a_grid). Run pe_vfi.py first.")
+        raise FileNotFoundError(f"Need {vfi_path} (ergodic_g, a_grid). run python -m dspg.pe_vfi first.")
 
     vfi = dict(np.load(vfi_path, allow_pickle=False))
     if "ergodic_g" not in vfi or "a_grid" not in vfi:
@@ -335,10 +341,38 @@ def main():
     vfi_gt_u = float(np.asarray(vfi["mean_discounted_utility"]).reshape(()))
 
     obs_dim = 4
-    actor = make_actor(obs_dim, args.hidden)
-    q1 = make_q_net(obs_dim, args.hidden)
-    q2 = make_q_net(obs_dim, args.hidden)
+    net = make_networks(obs_dim, args.hidden)
     tx = optax.adam(args.lr)
+
+    @jax.jit
+    def forward(params, obs):
+        return net.apply(params, None, obs)
+
+    @jax.jit
+    def loss_fn(params, batch):
+        obs, act, old_lp, adv, ret = batch
+        a_p, b_p, v = forward(params, obs)
+        new_lp = beta_log_prob(act, a_p, b_p)
+        ratio = jnp.exp(new_lp - old_lp)
+        surr1 = ratio * adv
+        surr2 = jnp.clip(ratio, 1.0 - clip_eps, 1.0 + clip_eps) * adv
+        pi_loss = -jnp.mean(jnp.minimum(surr1, surr2))
+        v_loss = jnp.mean(jnp.square(v - ret))
+        ent = beta_entropy(a_p, b_p)
+        return pi_loss + vf_coef * v_loss - ent_coef * ent
+
+    clip_eps = args.clip_eps
+    vf_coef = args.vf_coef
+    ent_coef = args.ent_coef
+
+    grad_fn = jax.value_and_grad(loss_fn)
+
+    @jax.jit
+    def update_step(params, opt_state, batch):
+        loss, grads = grad_fn(params, batch)
+        updates, opt_state = tx.update(grads, opt_state, params)
+        params = optax.apply_updates(params, updates)
+        return params, opt_state, loss
 
     log_interval = (
         args.log_every
@@ -346,106 +380,71 @@ def main():
         else max(1, args.total_updates // 10)
     )
 
-    @jax.jit
-    def actor_apply(p, obs):
-        return actor.apply(p, None, obs)
-
-    @jax.jit
-    def q1_apply(p, obs, act):
-        return q1.apply(p, None, obs, act)
-
-    @jax.jit
-    def q2_apply(p, obs, act):
-        return q2.apply(p, None, obs, act)
-
-    tau_ddpg = float(args.tau)
-
-    @jax.jit
-    def ddpg_step(actor_p, q1_p, q2_p, ta_p, tq1_p, tq2_p, opt_a, opt_q1, opt_q2, batch_o):
-        o, a, r, no, d = batch_o
-        a_t = actor_apply(ta_p, no)
-        q1_nt = q1_apply(tq1_p, no, a_t)
-        q2_nt = q2_apply(tq2_p, no, a_t)
-        y = r + (1.0 - d) * gamma * jnp.minimum(q1_nt, q2_nt)
-        y = jax.lax.stop_gradient(y)
-
-        def loss_q(q1p, q2p):
-            q1_c = q1_apply(q1p, o, a)
-            q2_c = q2_apply(q2p, o, a)
-            return jnp.mean((q1_c - y) ** 2 + (q2_c - y) ** 2)
-
-        gq1, gq2 = jax.grad(loss_q, argnums=(0, 1))(q1_p, q2_p)
-        u1, opt_q1_n = tx.update(gq1, opt_q1, q1_p)
-        q1_p_n = optax.apply_updates(q1_p, u1)
-        u2, opt_q2_n = tx.update(gq2, opt_q2, q2_p)
-        q2_p_n = optax.apply_updates(q2_p, u2)
-
-        def loss_a(ap):
-            mu_o = actor_apply(ap, o)
-            return -jnp.mean(q1_apply(q1_p_n, o, mu_o))
-
-        ga = jax.grad(loss_a)(actor_p)
-        ua, opt_a_n = tx.update(ga, opt_a, actor_p)
-        actor_p_n = optax.apply_updates(actor_p, ua)
-
-        ta_n = jax.tree_util.tree_map(
-            lambda t, p: tau_ddpg * p + (1.0 - tau_ddpg) * t, ta_p, actor_p_n
-        )
-        tq1_n = jax.tree_util.tree_map(
-            lambda t, p: tau_ddpg * p + (1.0 - tau_ddpg) * t, tq1_p, q1_p_n
-        )
-        tq2_n = jax.tree_util.tree_map(
-            lambda t, p: tau_ddpg * p + (1.0 - tau_ddpg) * t, tq2_p, q2_p_n
-        )
-        return actor_p_n, q1_p_n, q2_p_n, ta_n, tq1_n, tq2_n, opt_a_n, opt_q1_n, opt_q2_n
-
-    def noise_std_for_update(upd: int) -> float:
-        if args.total_updates <= 1:
-            return float(args.noise_sigma_final)
-        t = upd / float(args.total_updates - 1)
-        return (1.0 - t) * args.noise_sigma_init + t * args.noise_sigma_final
-
     def run_one_repeat(rep: int) -> None:
         rep_seed = int(args.seed + rep)
         rng = np.random.default_rng(rep_seed)
-        k1, k2, k3 = jax.random.split(jax.random.PRNGKey(rep_seed), 3)
-        obs0 = jnp.zeros((1, obs_dim))
-        actor_p = actor.init(k1, obs0)
-        q1_p = q1.init(k2, obs0, jnp.zeros((1,)))
-        q2_p = q2.init(k3, obs0, jnp.zeros((1,)))
-        ta_p = jax.tree_util.tree_map(lambda x: x + 0.0, actor_p)
-        tq1_p = jax.tree_util.tree_map(lambda x: x + 0.0, q1_p)
-        tq2_p = jax.tree_util.tree_map(lambda x: x + 0.0, q2_p)
-
-        opt_a = tx.init(actor_p)
-        opt_q1 = tx.init(q1_p)
-        opt_q2 = tx.init(q2_p)
-
-        buffer = ReplayBuffer(args.buffer_size, obs_dim)
+        key = jax.random.PRNGKey(rep_seed)
+        k_init, key = jax.random.split(key)
+        params = net.init(k_init, jnp.zeros((1, obs_dim)))
+        opt_state = tx.init(params)
+        print(
+            f"=== PPO repeat {rep + 1}/{args.repeats} (seed={rep_seed}) ===",
+            flush=True,
+        )
 
         curve_disc_return: list[float] = []
         curve_mean_reward: list[float] = []
         curve_ergodic_mean_u_at_log: list[float] = []
         curve_log_update_idx: list[int] = []
 
-        print(
-            f"=== DDPG repeat {rep + 1}/{args.repeats} (seed={rep_seed}) ===",
-            flush=True,
-        )
-
         t0 = time.time()
         for upd in range(args.total_updates):
-            sig = noise_std_for_update(upd)
-            data = collect_rollout_ddpg(
-                actor_apply, actor_p, env, args.n_envs, args.horizon, rng, sig
+            key, sk = jax.random.split(key)
+            data = collect_rollout(
+                forward, params, env, args.n_envs, args.horizon, rng, sk
             )
+
+            obs_f = data["obs"].reshape(-1, obs_dim)
+            act_f = data["actions"].reshape(-1)
+            rew_f = data["rewards"].reshape(-1)
+            val_f = data["values"].reshape(-1)
+            logp_f = data["log_probs"].reshape(-1)
+            done_f = data["dones"].reshape(-1)
+
+            last_obs = jnp.asarray(data["last_obs"])
+            _, _, last_v = forward(params, last_obs)
+            last_v = np.asarray(last_v)
+
             H, N = data["rewards"].shape
-            o_flat = data["obs"].reshape(-1, obs_dim)
-            a_flat = data["actions"].reshape(-1)
-            r_flat = data["rewards"].reshape(-1)
-            no_flat = data["next_obs"].reshape(-1, obs_dim)
-            d_flat = data["dones"].reshape(-1)
-            buffer.add_batch(o_flat, a_flat, r_flat, no_flat, d_flat)
+            adv, ret = compute_gae(
+                data["rewards"],
+                data["values"],
+                data["dones"],
+                last_v,
+                gamma,
+                args.lam,
+            )
+            adv_f = adv.reshape(-1)
+            ret_f = ret.reshape(-1)
+            adv_f = (adv_f - adv_f.mean()) / (adv_f.std() + 1e-8)
+
+            batch_size = obs_f.shape[0]
+            idx = np.arange(batch_size)
+
+            for _ in range(args.ppo_epochs):
+                rng.shuffle(idx)
+                for start in range(0, batch_size, args.minibatch):
+                    mb = idx[start : start + args.minibatch]
+                    if mb.size == 0:
+                        continue
+                    batch = (
+                        jnp.asarray(obs_f[mb]),
+                        jnp.asarray(act_f[mb]),
+                        jnp.asarray(logp_f[mb]),
+                        jnp.asarray(adv_f[mb]),
+                        jnp.asarray(ret_f[mb]),
+                    )
+                    params, opt_state, _ = update_step(params, opt_state, batch)
 
             disc_ret_ep = []
             for i in range(N):
@@ -454,38 +453,15 @@ def main():
                     g = data["rewards"][t, i] + gamma * g * (1.0 - data["dones"][t, i])
                 disc_ret_ep.append(g)
             curve_disc_return.append(float(np.mean(disc_ret_ep)))
-            curve_mean_reward.append(float(np.mean(r_flat)))
-
-            if buffer.size >= args.learning_starts:
-                for _ in range(args.grad_steps):
-                    bo, ba, br, bno, bd = buffer.sample(rng, args.batch_size)
-                    batch_o = (
-                        jnp.asarray(bo),
-                        jnp.asarray(ba),
-                        jnp.asarray(br),
-                        jnp.asarray(bno),
-                        jnp.asarray(bd),
-                    )
-                    actor_p, q1_p, q2_p, ta_p, tq1_p, tq2_p, opt_a, opt_q1, opt_q2 = ddpg_step(
-                        actor_p,
-                        q1_p,
-                        q2_p,
-                        ta_p,
-                        tq1_p,
-                        tq2_p,
-                        opt_a,
-                        opt_q1,
-                        opt_q2,
-                        batch_o,
-                    )
+            curve_mean_reward.append(float(np.mean(rew_f)))
 
             log_now = (upd + 1) % log_interval == 0 or upd == 0
             if log_now:
                 erg_line = ""
                 if args.log_ergodic_eval_paths > 0:
                     u_erg = eval_ergodic_markov_prices(
-                        actor_apply,
-                        actor_p,
+                        forward,
+                        params,
                         env,
                         g_erg,
                         a_grid_vfi,
@@ -498,18 +474,18 @@ def main():
                 print(
                     f"update {upd + 1}/{args.total_updates}  "
                     f"rollout_tail_disc (reset~uniform, H={args.horizon}): {curve_disc_return[-1]:.4f}  "
-                    f"mean_step_u {curve_mean_reward[-1]:.4f}  noise_std {sig:.4f}"
+                    f"mean_step_u {curve_mean_reward[-1]:.4f}"
                     f"{erg_line}",
                     flush=True,
                 )
 
         train_time = time.time() - t0
-        print(f"DDPG training wall time: {train_time:.1f}s", flush=True)
+        print(f"PPO training wall time: {train_time:.1f}s", flush=True)
 
         eval_rng = np.random.default_rng(rep_seed + 999)
         mean_u_eval = eval_ergodic_markov_prices(
-            actor_apply,
-            actor_p,
+            forward,
+            params,
             env,
             g_erg,
             a_grid_vfi,
@@ -517,14 +493,17 @@ def main():
             eval_rng,
         )
         print(
-            f"Post-train eval (ergodic a,e + Markov r,w): "
+            f"Post-train eval (ergodic a,e + Markov r,w, same as PEEnv): "
             f"mean discounted utility (T={env.T}): {mean_u_eval:.6f}",
             flush=True,
         )
-        print(f"VFI npz mean_discounted_utility: {vfi_gt_u:.6f}", flush=True)
+        print(
+            f"VFI npz mean_discounted_utility (may use different r,w law in MC): {vfi_gt_u:.6f}",
+            flush=True,
+        )
 
         tag = (
-            f"pe_ddpg_H{args.horizon}_E{args.n_envs}_U{args.total_updates}_lr{args.lr:.2E}"
+            f"pe_ppo_H{args.horizon}_E{args.n_envs}_U{args.total_updates}_lr{args.lr:.2E}"
             f"_R{args.repeats}_rep{rep}_s{rep_seed}"
         )
         pkl_path = results_dir / f"{tag}.pkl"
@@ -550,21 +529,18 @@ def main():
                         "base_seed": args.seed,
                         "repeat_index": rep,
                         "repeats": args.repeats,
-                        "algorithm": "DDPG",
-                        "policy": "deterministic_tanh_cshare",
                         "total_updates": args.total_updates,
                         "n_envs": args.n_envs,
                         "rollout_horizon": args.horizon,
                         "lr": args.lr,
                         "gamma": gamma,
-                        "tau": args.tau,
-                        "noise_sigma_init": args.noise_sigma_init,
-                        "noise_sigma_final": args.noise_sigma_final,
-                        "buffer_size": args.buffer_size,
-                        "batch_size": args.batch_size,
-                        "grad_steps_per_update": args.grad_steps,
-                        "learning_starts": args.learning_starts,
+                        "gae_lambda": args.lam,
+                        "clip_eps": args.clip_eps,
+                        "ppo_epochs": args.ppo_epochs,
+                        "minibatch": args.minibatch,
                         "hidden": args.hidden,
+                        "vf_coef": args.vf_coef,
+                        "ent_coef": args.ent_coef,
                         "eval_paths": args.eval_paths,
                         "log_every": log_interval,
                         "log_ergodic_eval_paths": args.log_ergodic_eval_paths,
@@ -572,12 +548,13 @@ def main():
                             "PEEnv.reset: a~U[a_min,a_max], e,r,w uniform on discrete states"
                         ),
                         "mean_disc_return_tail_definition": (
-                            "per-env backward discounted sum over last rollout window H"
+                            "per-env backward discounted sum over last rollout window H; "
+                            "not full T unless episode fits without trunc"
                         ),
                         "post_train_eval_r_w": "markov (r_trans, w_trans) like PEEnv",
                         "pe_env_T": int(env.T),
                         "obs_space": "(a, e_level, r_level, w_level)",
-                        "action": "cshare in (0,1) deterministic + Gaussian exploration",
+                        "action": "cshare in [0,1] Beta policy",
                     },
                     "train_wall_time_s": train_time,
                 },
@@ -602,17 +579,19 @@ def main():
                     linestyle="-",
                     label="Ergodic (a,e) eval mean U (T steps, Markov r,w)",
                 )
-            ax.axhline(y=vfi_gt_u, color="gray", linestyle="--", label="VFI mean_discounted_utility")
+            ax.axhline(
+                y=vfi_gt_u, color="gray", linestyle="--", label="VFI mean_discounted_utility"
+            )
             ax.axhline(
                 y=mean_u_eval,
                 color="C1",
                 linestyle=":",
-                label=f"DDPG final ergodic eval ({args.eval_paths} paths)",
+                label=f"PPO final ergodic eval ({args.eval_paths} paths)",
             )
-            ax.set_xlabel("DDPG update")
+            ax.set_xlabel("PPO update")
             ax.set_ylabel("Utility / return")
             ax.set_title(
-                f"PEEnv DDPG repeat {rep + 1}/{args.repeats} (seed={rep_seed}) vs VFI"
+                f"PEEnv PPO repeat {rep + 1}/{args.repeats} (seed={rep_seed}) vs VFI"
             )
             ax.grid(True, alpha=0.3)
             ax.legend(loc="best")

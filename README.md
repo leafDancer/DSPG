@@ -2,10 +2,10 @@
 
 Code for **DSPG**, a distribution-based extension of structural policy-gradient ideas (building on structural reinforcement learning), applied here to heterogeneous-agent style environments.
 
-This repository includes:
+All Python modules live under [`dspg/`](dspg/); notebooks are in [`dspg/notebooks/`](dspg/notebooks/).
 
-- **Partial equilibrium (PE)** experiments: [`pe_rl_env.py`](pe_rl_env.py), [`pe_dspg.py`](pe_dspg.py), baselines [`pe_ppo.py`](pe_ppo.py), [`pe_sac.py`](pe_sac.py), [`pe_ddpg.py`](pe_ddpg.py), and value-function iteration [`pe_vfi.py`](pe_vfi.py).
-- **Notebooks**: [`main.ipynb`](main.ipynb) (DSPG / Huggett-style illustration), [`ablation_study.ipynb`](ablation_study.ipynb), [`validate_ks.ipynb`](validate_ks.ipynb) (Krusell–Smith validation).
+- **Partial equilibrium (PE)** experiments: [`dspg/pe_rl_env.py`](dspg/pe_rl_env.py), [`dspg/pe_dspg.py`](dspg/pe_dspg.py), baselines [`dspg/pe_ppo.py`](dspg/pe_ppo.py), [`dspg/pe_sac.py`](dspg/pe_sac.py), [`dspg/pe_ddpg.py`](dspg/pe_ddpg.py), and value-function iteration [`dspg/pe_vfi.py`](dspg/pe_vfi.py).
+- **Notebooks**: [`dspg/notebooks/main.ipynb`](dspg/notebooks/main.ipynb), [`dspg/notebooks/ablation_study.ipynb`](dspg/notebooks/ablation_study.ipynb).
 - **Figures / LaTeX snippets**: [`figures/`](figures/) — tables and hyper-parameter blocks for manuscripts.
 
 Abbreviation **DSPG** stands for **Distribution-based Structural Policy Gradient** (emphasizes cross-sectional distributions over agents, not “distributional RL” over return distributions).
@@ -21,18 +21,20 @@ pip install -r requirements.txt
 pip install "jax[cuda12]"   # example; pick the JAX extras that match your CUDA version
 ```
 
+Run scripts from the **repository root** so `results/` and `figures/` resolve correctly.
+
 ## Quick start (PE environment)
 
-1. Run VFI to produce `results/pe_vfi.npz` (used as bounds / ground truth for DSPG and some baselines):
+1. Run VFI to produce `results/pe_vfi.npz`:
 
    ```bash
-   python pe_vfi.py --cuda 0
+   python -m dspg.pe_vfi --cuda 0
    ```
 
 2. Train DSPG on the PE environment:
 
    ```bash
-   python pe_dspg.py --cuda 0
+   python -m dspg.pe_dspg --cuda 0
    ```
 
    Outputs include pickles and PDFs under [`results/`](results/) with prefix `pe_dspg_`.
@@ -40,21 +42,22 @@ pip install "jax[cuda12]"   # example; pick the JAX extras that match your CUDA 
 3. Baselines (examples):
 
    ```bash
-   python pe_ppo.py --cuda 0
-   python pe_sac.py --cuda 0
-   python pe_ddpg.py --cuda 0
+   python -m dspg.pe_ppo --cuda 0
+   python -m dspg.pe_sac --cuda 0
+   python -m dspg.pe_ddpg --cuda 0
    ```
 
 `--cuda` sets `CUDA_VISIBLE_DEVICES` to that GPU index.
 
 ## Plotting
 
-- [`plot_pe_training_comparison.py`](plot_pe_training_comparison.py): compares DSPG, PPO, SAC, DDPG, and VFI; writes PDFs and LaTeX table snippets under `figures/`. Default glob for DSPG pickles is `pe_dspg_bs64_*_R10.pkl`; if only legacy `pe_uspg_*` files exist, they are detected automatically with a console note.
-- [`pe_plot.py`](pe_plot.py): DSPG-only training curve vs VFI with uncertainty band.
+- [`dspg/plot_pe_training_comparison.py`](dspg/plot_pe_training_comparison.py): compares DSPG, PPO, SAC, DDPG, and VFI; writes PDFs and LaTeX snippets under `figures/`. Default glob for DSPG pickles is `pe_dspg_bs64_*_R10.pkl`; legacy `pe_uspg_*` files are detected automatically if present.
+
+- [`dspg/pe_plot.py`](dspg/pe_plot.py): DSPG-only training curve vs VFI with uncertainty band.
 
 ```bash
-python plot_pe_training_comparison.py
-python pe_plot.py --pattern 'pe_dspg_bs64_*_R10.pkl'
+python -m dspg.plot_pe_training_comparison
+python -m dspg.pe_plot --pattern 'pe_dspg_bs64_*_R10.pkl'
 ```
 
 ## Results directory

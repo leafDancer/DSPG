@@ -21,6 +21,8 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
+from dspg.repo_paths import REPO_ROOT
+
 Z_BAND = 1.00
 
 # Distinct plot markers (DSPG / PPO / SAC / DDPG must all differ)
@@ -392,7 +394,7 @@ def main():
     )
     args = parser.parse_args()
 
-    root = Path(__file__).resolve().parent
+    root = REPO_ROOT
     res = root / args.results_dir
     figdir = root / "figures"
     figdir.mkdir(parents=True, exist_ok=True)

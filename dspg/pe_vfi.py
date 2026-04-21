@@ -8,6 +8,8 @@ import os
 import pickle
 from pathlib import Path
 
+from dspg.repo_paths import REPO_ROOT
+
 if "JAX_PLATFORMS" not in os.environ:
     os.environ["JAX_PLATFORMS"] = "cuda"
 
@@ -15,7 +17,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from pe_rl_env import PEEnv
+from dspg.pe_rl_env import PEEnv
 
 # --- grids (align with Huggett VFI style: geometric asset grid) ---
 NA = 200
@@ -265,7 +267,7 @@ def main():
     mean_wealth_post = float(mean_wealth_traj[sim_horizon - 1])
     gap_pre_post = mean_wealth_post - mean_wealth_pre
 
-    out_dir = Path(__file__).resolve().parent / "results"
+    out_dir = REPO_ROOT / "results"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     npz_path = out_dir / "pe_vfi.npz"
