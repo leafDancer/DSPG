@@ -11,7 +11,6 @@ venv/
 dist/
 build/
 .ipynb_checkpoints/
-# Large run artifacts (uncomment if you keep logs but exclude pickles)
-# results/*.pkl
-# results/*.npz
+# Training outputs: keep locally, do not commit
+results/
 wandb/

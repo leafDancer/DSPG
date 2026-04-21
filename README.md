@@ -105,7 +105,7 @@ python -m dspg.pe_plot --pattern 'pe_dspg_bs64_*_R10.pkl'
 
 ## Results directory
 
-[`results/`](results/) may contain logs, pickles (`.pkl`), NumPy archives, and PDFs from training runs. Fresh clones without these files need to re-run PE/GE experiments locally.
+The [`results/`](results/) folder is **gitignored**: experiment outputs stay on your machine and are **not pushed to GitHub**. After cloning, create `results/` locally (the scripts write there automatically) or run PE/GE training to regenerate logs, pickles, and `.npz` artifacts.
 
 ## License
 
