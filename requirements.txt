@@ -1,0 +1,6 @@
+# Pin JAX separately for your CUDA version: pip install "jax[cuda12]" etc.
+numpy>=1.24
+scipy>=1.10
+matplotlib>=3.7
+dm-haiku>=0.0.10
+optax>=0.1.7

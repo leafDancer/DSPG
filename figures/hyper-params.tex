@@ -1,0 +1,161 @@
+\section{Hyper-parameters}
+\label{appendix_hyper_params}
+
+\subsection{DSPG (Huggett Economy)}
+\label{appendix_hyper_dspg_huggett}
+\begin{table}[H]
+  \centering
+  \small
+  \setlength{\tabcolsep}{6pt}
+  \renewcommand{\arraystretch}{1.15}
+  \begin{tabular}{@{}p{2.4cm}p{6.2cm}p{4.8cm}@{}}
+    \toprule
+    Symbol & Description & Value \\
+    \midrule
+    $n_a$ & Number of asset grid points & $200$ \\
+    $a_{\min},\,a_{\max}$ & Borrowing limit and asset upper bound & $0,\;150$ \\
+    $n_e,\,n_z$ & Labor productivity states, TFP states & $3,\;5$ \\
+    $\beta$ & Discount factor & $0.975$ \\
+    $\sigma$ & Coefficient of relative risk aversion & $1$ (log utility) \\
+    $B$ & Total bond supply (market clearing) & $5$ \\
+    $\varepsilon_{\mathrm{trunc}}$ & Truncation error for infinite horizon & $10^{-2}$ \\
+    $T$ & Training rollout length & $\lfloor \ln(\varepsilon_{\mathrm{trunc}})/\ln\beta\rfloor$ (as in script) \\
+    $B_{\mathrm{train}}$ & Batch size & $64$ \\
+    $N_{\mathrm{epoch}}$ & Training epochs & $1000$ \\
+    $\eta_0$ & Adam initial learning rate & $2\times 10^{-3}$ \\
+    LR schedule & \texttt{optax.exponential\_decay} (multiplicative per epoch) & Factor $0.5$ \\
+    Optimizer & & Adam \\
+    Warm-up & Initial distribution $g_0$ for early epochs & Epochs $1$--$50$: \texttt{steady\_dist}; thereafter previous \texttt{final\_g} \\
+    U-Net width & Output channels per \texttt{DoubleConv} block & $4$ \\
+    Convolution & \texttt{Conv1D} / \texttt{Conv1DTranspose} & Kernel $3$; \texttt{SAME} padding \\
+    Activation & Hidden layers & \texttt{LeakyReLU} \\
+    Downsampling & Pooling & \texttt{AvgPool}, window $2$, stride $2$ \\
+    Output head & Consumption parameterization & \texttt{sigmoid} then cumulative sum for $c(a,e,z)$ \\
+    Repeats & Outer loop in \texttt{ablation\_study.py} & $10$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{DSPG (PE Economy)}
+\label{appendix_hyper_dspg_pe}
+\begin{table}[H]
+  \centering
+  \small
+  \setlength{\tabcolsep}{6pt}
+  \renewcommand{\arraystretch}{1.15}
+  \begin{tabular}{@{}p{2.4cm}p{6.2cm}p{4.8cm}@{}}
+    \toprule
+    Symbol & Description & Value \\
+    \midrule
+    $N_a$ (\texttt{NA}) & Number of asset grid points & $200$ \\
+    $a_{\min},\,a_{\max}$ & Asset bounds (\texttt{PEEnv}) & $0,\;100$ \\
+    $n_e,\,n_r,\,n_w$ & States for productivity, interest rate, wage factor & $3,\;5,\;7$ \\
+    $\beta$ & Discount factor & $0.975$ \\
+    $\sigma$ & Coefficient of relative risk aversion & $1$ \\
+    $c_{\min}$ & Minimum consumption (feasibility) & $10^{-3}$ \\
+    $T$ & Training and evaluation horizon & Default \texttt{PEEnv.T} ($\lceil \ln(10^{-2})/\ln\beta\rceil$, $\approx 182$); override with \texttt{--horizon} \\
+    $B_{\mathrm{train}}$ & Batch size & $64$ \\
+    $N_{\mathrm{epoch}}$ & Training epochs & $1000$ \\
+    $N_{\mathrm{rep}}$ & Independent runs & $10$ \\
+    $\eta_0$ & Adam initial learning rate & $2\times 10^{-3}$ \\
+    LR schedule & \texttt{optax.exponential\_decay} & Factor $0.5$ per epoch \\
+    Optimizer & & Adam \\
+    $N_{\mathrm{warm}}$ & Epochs with ergodic $g_0$ warm-start & $50$ (\texttt{WARMUP\_EPOCHS}) \\
+    $N_{\mathrm{eval}}$ & Interval for fixed-$g_0$ curve evaluation & $100$ (\texttt{eval\_every}; first and last epoch always evaluated) \\
+    U-Net width & Channels per \texttt{DoubleConv} & $4$ \\
+    Conv.\ / pooling & & Same pattern as Huggett DSPG (kernel $3$, \texttt{LeakyReLU}, \texttt{AvgPool}) \\
+    Policy output & Relative to VFI upper bound & Consumption over $n_e$; $(r,w)$ enter through wealth, no separate head \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{PPO (PE Economy)}
+\label{appendix_hyper_ppo_pe}
+\begin{table}[H]
+  \centering
+  \small
+  \setlength{\tabcolsep}{6pt}
+  \renewcommand{\arraystretch}{1.15}
+  \begin{tabular}{@{}p{2.4cm}p{6.2cm}p{4.8cm}@{}}
+    \toprule
+    Symbol & Description & Value \\
+    \midrule
+    $N_{\mathrm{update}}$ & Total PPO updates & $500$ \\
+    $N_{\mathrm{env}}$ & Parallel environments & $32$ \\
+    $H$ & Rollout length per env per update & $64$ \\
+    $d_h$ & Shared trunk hidden width (MLP) & $128$ (two \texttt{tanh} layers) \\
+    $\eta$ & Learning rate & $3\times 10^{-4}$ \\
+    $\gamma$ & Discount factor & Default $\beta$ (\texttt{PEEnv.beta}, $0.975$) \\
+    $\lambda_{\mathrm{GAE}}$ & GAE parameter & $0.95$ \\
+    $\varepsilon_{\mathrm{clip}}$ & PPO clip range & $0.2$ \\
+    $E_{\mathrm{ppo}}$ & PPO epochs per update & $10$ \\
+    $|{\cal M}|$ & Minibatch size & $256$ \\
+    $c_v$ & Value loss coefficient & $0.5$ \\
+    $c_H$ & Entropy bonus coefficient & $0.01$ \\
+    -- & Obs.\ normalization scale (\texttt{normalize\_obs}) & $[a_{\max}{-}a_{\min},\,2.5,\,0.035,\,0.15]$ \\
+    -- & Obs.\ normalization offset (\texttt{normalize\_obs}) & $[a_{\min},\,0,\,r_{\min}{-}0.01,\,w_{\min}{-}0.02]$ \\
+    Eval paths & Post-training Monte Carlo evaluation & $4096$ (\texttt{--eval\_paths}) \\
+    Ergodic eval paths & Ergodic eval when logging & $256$ (\texttt{--log\_ergodic\_eval\_paths}) \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{SAC (PE Economy)}
+\label{appendix_hyper_sac_pe}
+\begin{table}[H]
+  \centering
+  \small
+  \setlength{\tabcolsep}{6pt}
+  \renewcommand{\arraystretch}{1.15}
+  \begin{tabular}{@{}p{2.4cm}p{6.2cm}p{4.8cm}@{}}
+    \toprule
+    Symbol & Description & Value \\
+    \midrule
+    $N_{\mathrm{update}}$ & Total gradient-update rounds & $500$ \\
+    $N_{\mathrm{env}}$ & Parallel environments & $32$ \\
+    $H$ & Rollout-related horizon & $64$ \\
+    $d_h$ & Actor / critic MLP hidden width & $128$ (actor: two \texttt{ReLU} layers) \\
+    $\eta$ & Learning rate (Q and actor) & $3\times 10^{-4}$ \\
+    $\gamma$ & Discount factor & Default $\beta=0.975$ \\
+    $\tau$ & Target soft-update coefficient & $0.005$ \\
+    $\alpha_{\mathrm{SAC}}$ & Entropy temperature (fixed) & $0.2$ \\
+    $|{\cal B}|$ & Replay buffer capacity & $500\,000$ \\
+    $B_{\mathrm{train}}$ & Batch size per gradient step & $256$ \\
+    $N_{\mathrm{grad}}$ & Gradient steps per environment step (after warm-up) & $80$ \\
+    $N_{\mathrm{start}}$ & Minimum transitions before learning & $5000$ \\
+    $\log\sigma$ clip & Stability & $[-20,\,2]$ (\texttt{LOG\_STD\_MIN/MAX}) \\
+    Eval paths & Post-training MC evaluation & $4096$ (\texttt{--eval\_paths}) \\
+    Ergodic eval paths & Ergodic eval when logging & $256$ (\texttt{--log\_ergodic\_eval\_paths}) \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{DDPG (PE Economy)}
+\label{appendix_hyper_ddpg_pe}
+\begin{table}[H]
+  \centering
+  \small
+  \setlength{\tabcolsep}{6pt}
+  \renewcommand{\arraystretch}{1.15}
+  \begin{tabular}{@{}p{2.4cm}p{6.2cm}p{4.8cm}@{}}
+    \toprule
+    Symbol & Description & Value \\
+    \midrule
+    $N_{\mathrm{update}}$ & Total update rounds & $500$ \\
+    $N_{\mathrm{env}}$ & Parallel environments & $32$ \\
+    $H$ & Horizon & $64$ \\
+    $d_h$ & Actor / Q hidden width & $128$ (two \texttt{ReLU} layers) \\
+    $\eta$ & Learning rate & $3\times 10^{-4}$ \\
+    $\gamma$ & Discount factor & Default $\beta=0.975$ \\
+    $\tau$ & Target soft-update coefficient & $0.005$ \\
+    $\sigma_{\mathrm{noise}}^{(0)}$ & Initial exploration noise std (on share) & $0.1$ \\
+    $\sigma_{\mathrm{noise}}^{(\mathrm{end})}$ & Final exploration noise std & $0.02$ \\
+    $|{\cal B}|$ & Replay buffer capacity & $500\,000$ \\
+    $B_{\mathrm{train}}$ & Batch size & $256$ \\
+    $N_{\mathrm{grad}}$ & Gradient steps per update & $80$ \\
+    $N_{\mathrm{start}}$ & Minimum samples before learning & $5000$ \\
+    Eval paths & Post-training MC evaluation & $4096$ (\texttt{--eval\_paths}) \\
+    Ergodic eval paths & Ergodic eval when logging & $256$ (\texttt{log\_ergodic\_eval\_paths}) \\
+    \bottomrule
+  \end{tabular}
+\end{table}

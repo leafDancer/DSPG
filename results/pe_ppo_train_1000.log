@@ -1,0 +1,16 @@
+update 1/1000  rollout_tail_disc (reset~uniform, H=64): 3.3167  mean_step_u -0.0511  ergodic_eval_mean_u(256p) 3.4219
+update 100/1000  rollout_tail_disc (reset~uniform, H=64): 23.6369  mean_step_u 0.7108  ergodic_eval_mean_u(256p) 5.0200
+update 200/1000  rollout_tail_disc (reset~uniform, H=64): 22.7908  mean_step_u 0.7009  ergodic_eval_mean_u(256p) 4.7232
+update 300/1000  rollout_tail_disc (reset~uniform, H=64): 26.1541  mean_step_u 0.7902  ergodic_eval_mean_u(256p) 4.9967
+update 400/1000  rollout_tail_disc (reset~uniform, H=64): 22.6669  mean_step_u 0.6940  ergodic_eval_mean_u(256p) 6.2952
+update 500/1000  rollout_tail_disc (reset~uniform, H=64): 23.7475  mean_step_u 0.7348  ergodic_eval_mean_u(256p) 5.3515
+update 600/1000  rollout_tail_disc (reset~uniform, H=64): 28.1335  mean_step_u 0.8660  ergodic_eval_mean_u(256p) 5.2086
+update 700/1000  rollout_tail_disc (reset~uniform, H=64): 24.2495  mean_step_u 0.7368  ergodic_eval_mean_u(256p) 5.8061
+update 800/1000  rollout_tail_disc (reset~uniform, H=64): 28.0258  mean_step_u 0.8726  ergodic_eval_mean_u(256p) 5.3317
+update 900/1000  rollout_tail_disc (reset~uniform, H=64): 23.1791  mean_step_u 0.7114  ergodic_eval_mean_u(256p) 5.6541
+update 1000/1000  rollout_tail_disc (reset~uniform, H=64): 21.1806  mean_step_u 0.6507  ergodic_eval_mean_u(256p) 5.3810
+PPO training wall time: 2369.2s
+Post-train eval (ergodic a,e + Markov r,w, same as PEEnv): mean discounted utility (T=182): 5.531203
+VFI npz mean_discounted_utility (may use different r,w law in MC): 5.653381
+Saved metadata + curves to /home/chiyuan/Huggett/results/pe_ppo_H64_E32_U1000_lr3.00E-04.pkl
+Saved figure to /home/chiyuan/Huggett/results/pe_ppo_H64_E32_U1000_lr3.00E-04_training_curve.pdf

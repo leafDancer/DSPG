@@ -1,0 +1,170 @@
+=== SAC repeat 1/10 (seed=0) ===
+update 1/1000  rollout_tail_disc (reset~uniform, H=64): -19.6919  mean_step_u -0.7346  ergodic_eval_mean_u(256p) 3.9850
+update 100/1000  rollout_tail_disc (reset~uniform, H=64): 21.2397  mean_step_u 0.4344  ergodic_eval_mean_u(256p) 3.7432
+update 200/1000  rollout_tail_disc (reset~uniform, H=64): 21.2765  mean_step_u 0.4535  ergodic_eval_mean_u(256p) 3.9975
+update 300/1000  rollout_tail_disc (reset~uniform, H=64): 21.9113  mean_step_u 0.5149  ergodic_eval_mean_u(256p) 4.2358
+update 400/1000  rollout_tail_disc (reset~uniform, H=64): 22.3333  mean_step_u 0.4801  ergodic_eval_mean_u(256p) 4.9622
+update 500/1000  rollout_tail_disc (reset~uniform, H=64): 27.8488  mean_step_u 0.6945  ergodic_eval_mean_u(256p) 4.1540
+update 600/1000  rollout_tail_disc (reset~uniform, H=64): 20.7959  mean_step_u 0.4659  ergodic_eval_mean_u(256p) 4.2380
+update 700/1000  rollout_tail_disc (reset~uniform, H=64): 23.4004  mean_step_u 0.5417  ergodic_eval_mean_u(256p) 4.3862
+update 800/1000  rollout_tail_disc (reset~uniform, H=64): 20.4257  mean_step_u 0.4321  ergodic_eval_mean_u(256p) 4.0904
+update 900/1000  rollout_tail_disc (reset~uniform, H=64): 21.5754  mean_step_u 0.4964  ergodic_eval_mean_u(256p) 4.3638
+update 1000/1000  rollout_tail_disc (reset~uniform, H=64): 22.5270  mean_step_u 0.5206  ergodic_eval_mean_u(256p) 4.1920
+SAC training wall time: 1321.0s
+Post-train eval (ergodic a,e + Markov r,w): mean discounted utility (T=182): 4.293386
+VFI npz mean_discounted_utility: 5.653381
+Saved metadata + curves to /home/chiyuan/Huggett/results/pe_sac_H64_E32_U1000_lr3.00E-04_R10_rep0_s0.pkl
+Saved figure to /home/chiyuan/Huggett/results/pe_sac_H64_E32_U1000_lr3.00E-04_R10_rep0_s0_training_curve.pdf
+=== SAC repeat 2/10 (seed=1) ===
+update 1/1000  rollout_tail_disc (reset~uniform, H=64): -6.5548  mean_step_u -0.3229  ergodic_eval_mean_u(256p) 2.7385
+update 100/1000  rollout_tail_disc (reset~uniform, H=64): 20.1325  mean_step_u 0.4008  ergodic_eval_mean_u(256p) 3.7117
+update 200/1000  rollout_tail_disc (reset~uniform, H=64): 20.2421  mean_step_u 0.4470  ergodic_eval_mean_u(256p) 4.4434
+update 300/1000  rollout_tail_disc (reset~uniform, H=64): 22.0894  mean_step_u 0.4807  ergodic_eval_mean_u(256p) 4.1635
+update 400/1000  rollout_tail_disc (reset~uniform, H=64): 25.5127  mean_step_u 0.6078  ergodic_eval_mean_u(256p) 3.8316
+update 500/1000  rollout_tail_disc (reset~uniform, H=64): 20.5345  mean_step_u 0.4466  ergodic_eval_mean_u(256p) 4.1550
+update 600/1000  rollout_tail_disc (reset~uniform, H=64): 22.9526  mean_step_u 0.5583  ergodic_eval_mean_u(256p) 4.6304
+update 700/1000  rollout_tail_disc (reset~uniform, H=64): 21.4070  mean_step_u 0.4994  ergodic_eval_mean_u(256p) 4.0771
+update 800/1000  rollout_tail_disc (reset~uniform, H=64): 24.9760  mean_step_u 0.6085  ergodic_eval_mean_u(256p) 4.4797
+update 900/1000  rollout_tail_disc (reset~uniform, H=64): 22.6142  mean_step_u 0.4959  ergodic_eval_mean_u(256p) 4.7321
+update 1000/1000  rollout_tail_disc (reset~uniform, H=64): 25.7268  mean_step_u 0.6198  ergodic_eval_mean_u(256p) 4.6167
+SAC training wall time: 1331.8s
+Post-train eval (ergodic a,e + Markov r,w): mean discounted utility (T=182): 4.504045
+VFI npz mean_discounted_utility: 5.653381
+Saved metadata + curves to /home/chiyuan/Huggett/results/pe_sac_H64_E32_U1000_lr3.00E-04_R10_rep1_s1.pkl
+Saved figure to /home/chiyuan/Huggett/results/pe_sac_H64_E32_U1000_lr3.00E-04_R10_rep1_s1_training_curve.pdf
+=== SAC repeat 3/10 (seed=2) ===
+update 1/1000  rollout_tail_disc (reset~uniform, H=64): -18.9337  mean_step_u -0.7388  ergodic_eval_mean_u(256p) 3.9497
+update 100/1000  rollout_tail_disc (reset~uniform, H=64): 20.9362  mean_step_u 0.4308  ergodic_eval_mean_u(256p) 3.3168
+update 200/1000  rollout_tail_disc (reset~uniform, H=64): 20.6088  mean_step_u 0.4552  ergodic_eval_mean_u(256p) 4.0542
+update 300/1000  rollout_tail_disc (reset~uniform, H=64): 24.3380  mean_step_u 0.5772  ergodic_eval_mean_u(256p) 4.4007
+update 400/1000  rollout_tail_disc (reset~uniform, H=64): 21.1587  mean_step_u 0.4695  ergodic_eval_mean_u(256p) 4.1365
+update 500/1000  rollout_tail_disc (reset~uniform, H=64): 22.5900  mean_step_u 0.5298  ergodic_eval_mean_u(256p) 4.0473
+update 600/1000  rollout_tail_disc (reset~uniform, H=64): 24.7911  mean_step_u 0.5611  ergodic_eval_mean_u(256p) 4.0128
+update 700/1000  rollout_tail_disc (reset~uniform, H=64): 23.1037  mean_step_u 0.5454  ergodic_eval_mean_u(256p) 4.5156
+update 800/1000  rollout_tail_disc (reset~uniform, H=64): 25.5057  mean_step_u 0.5918  ergodic_eval_mean_u(256p) 4.2299
+update 900/1000  rollout_tail_disc (reset~uniform, H=64): 23.5675  mean_step_u 0.5237  ergodic_eval_mean_u(256p) 4.1743
+update 1000/1000  rollout_tail_disc (reset~uniform, H=64): 24.0811  mean_step_u 0.5861  ergodic_eval_mean_u(256p) 4.5138
+SAC training wall time: 1315.9s
+Post-train eval (ergodic a,e + Markov r,w): mean discounted utility (T=182): 4.484618
+VFI npz mean_discounted_utility: 5.653381
+Saved metadata + curves to /home/chiyuan/Huggett/results/pe_sac_H64_E32_U1000_lr3.00E-04_R10_rep2_s2.pkl
+Saved figure to /home/chiyuan/Huggett/results/pe_sac_H64_E32_U1000_lr3.00E-04_R10_rep2_s2_training_curve.pdf
+=== SAC repeat 4/10 (seed=3) ===
+update 1/1000  rollout_tail_disc (reset~uniform, H=64): -3.5257  mean_step_u -0.2607  ergodic_eval_mean_u(256p) 3.1723
+update 100/1000  rollout_tail_disc (reset~uniform, H=64): 20.9269  mean_step_u 0.4335  ergodic_eval_mean_u(256p) 3.5234
+update 200/1000  rollout_tail_disc (reset~uniform, H=64): 23.5446  mean_step_u 0.5770  ergodic_eval_mean_u(256p) 3.9037
+update 300/1000  rollout_tail_disc (reset~uniform, H=64): 18.0107  mean_step_u 0.3949  ergodic_eval_mean_u(256p) 3.9242
+update 400/1000  rollout_tail_disc (reset~uniform, H=64): 19.1678  mean_step_u 0.4209  ergodic_eval_mean_u(256p) 4.4800
+update 500/1000  rollout_tail_disc (reset~uniform, H=64): 24.9834  mean_step_u 0.5727  ergodic_eval_mean_u(256p) 4.1522
+update 600/1000  rollout_tail_disc (reset~uniform, H=64): 26.0549  mean_step_u 0.6221  ergodic_eval_mean_u(256p) 4.6447
+update 700/1000  rollout_tail_disc (reset~uniform, H=64): 24.9923  mean_step_u 0.5926  ergodic_eval_mean_u(256p) 3.8725
+update 800/1000  rollout_tail_disc (reset~uniform, H=64): 22.0270  mean_step_u 0.4962  ergodic_eval_mean_u(256p) 4.4046
+update 900/1000  rollout_tail_disc (reset~uniform, H=64): 17.2496  mean_step_u 0.3709  ergodic_eval_mean_u(256p) 4.2558
+update 1000/1000  rollout_tail_disc (reset~uniform, H=64): 20.8466  mean_step_u 0.4647  ergodic_eval_mean_u(256p) 4.0181
+SAC training wall time: 1320.8s
+Post-train eval (ergodic a,e + Markov r,w): mean discounted utility (T=182): 4.371256
+VFI npz mean_discounted_utility: 5.653381
+Saved metadata + curves to /home/chiyuan/Huggett/results/pe_sac_H64_E32_U1000_lr3.00E-04_R10_rep3_s3.pkl
+Saved figure to /home/chiyuan/Huggett/results/pe_sac_H64_E32_U1000_lr3.00E-04_R10_rep3_s3_training_curve.pdf
+=== SAC repeat 5/10 (seed=4) ===
+update 1/1000  rollout_tail_disc (reset~uniform, H=64): -0.3185  mean_step_u -0.1621  ergodic_eval_mean_u(256p) 2.9587
+update 100/1000  rollout_tail_disc (reset~uniform, H=64): 18.8494  mean_step_u 0.4111  ergodic_eval_mean_u(256p) 3.8474
+update 200/1000  rollout_tail_disc (reset~uniform, H=64): 21.1318  mean_step_u 0.4920  ergodic_eval_mean_u(256p) 4.0781
+update 300/1000  rollout_tail_disc (reset~uniform, H=64): 22.0093  mean_step_u 0.4847  ergodic_eval_mean_u(256p) 4.3954
+update 400/1000  rollout_tail_disc (reset~uniform, H=64): 21.2132  mean_step_u 0.5032  ergodic_eval_mean_u(256p) 4.1645
+update 500/1000  rollout_tail_disc (reset~uniform, H=64): 21.9581  mean_step_u 0.4747  ergodic_eval_mean_u(256p) 3.8637
+update 600/1000  rollout_tail_disc (reset~uniform, H=64): 24.3644  mean_step_u 0.5669  ergodic_eval_mean_u(256p) 4.3503
+update 700/1000  rollout_tail_disc (reset~uniform, H=64): 22.5893  mean_step_u 0.5025  ergodic_eval_mean_u(256p) 4.3704
+update 800/1000  rollout_tail_disc (reset~uniform, H=64): 21.4089  mean_step_u 0.4875  ergodic_eval_mean_u(256p) 3.9222
+update 900/1000  rollout_tail_disc (reset~uniform, H=64): 23.6368  mean_step_u 0.5345  ergodic_eval_mean_u(256p) 4.6584
+update 1000/1000  rollout_tail_disc (reset~uniform, H=64): 22.4394  mean_step_u 0.5064  ergodic_eval_mean_u(256p) 4.0661
+SAC training wall time: 1324.5s
+Post-train eval (ergodic a,e + Markov r,w): mean discounted utility (T=182): 4.268482
+VFI npz mean_discounted_utility: 5.653381
+Saved metadata + curves to /home/chiyuan/Huggett/results/pe_sac_H64_E32_U1000_lr3.00E-04_R10_rep4_s4.pkl
+Saved figure to /home/chiyuan/Huggett/results/pe_sac_H64_E32_U1000_lr3.00E-04_R10_rep4_s4_training_curve.pdf
+=== SAC repeat 6/10 (seed=5) ===
+update 1/1000  rollout_tail_disc (reset~uniform, H=64): -0.6253  mean_step_u -0.1416  ergodic_eval_mean_u(256p) 2.7293
+update 100/1000  rollout_tail_disc (reset~uniform, H=64): 16.1184  mean_step_u 0.3313  ergodic_eval_mean_u(256p) 3.1826
+update 200/1000  rollout_tail_disc (reset~uniform, H=64): 20.8890  mean_step_u 0.4573  ergodic_eval_mean_u(256p) 3.8097
+update 300/1000  rollout_tail_disc (reset~uniform, H=64): 25.9673  mean_step_u 0.6404  ergodic_eval_mean_u(256p) 4.5290
+update 400/1000  rollout_tail_disc (reset~uniform, H=64): 20.0144  mean_step_u 0.4146  ergodic_eval_mean_u(256p) 4.3668
+update 500/1000  rollout_tail_disc (reset~uniform, H=64): 23.9724  mean_step_u 0.5422  ergodic_eval_mean_u(256p) 4.4051
+update 600/1000  rollout_tail_disc (reset~uniform, H=64): 22.7387  mean_step_u 0.5151  ergodic_eval_mean_u(256p) 4.1182
+update 700/1000  rollout_tail_disc (reset~uniform, H=64): 22.0035  mean_step_u 0.5202  ergodic_eval_mean_u(256p) 4.5425
+update 800/1000  rollout_tail_disc (reset~uniform, H=64): 22.0028  mean_step_u 0.5264  ergodic_eval_mean_u(256p) 4.1687
+update 900/1000  rollout_tail_disc (reset~uniform, H=64): 24.2010  mean_step_u 0.5714  ergodic_eval_mean_u(256p) 3.9831
+update 1000/1000  rollout_tail_disc (reset~uniform, H=64): 22.6047  mean_step_u 0.5428  ergodic_eval_mean_u(256p) 4.1148
+SAC training wall time: 1327.4s
+Post-train eval (ergodic a,e + Markov r,w): mean discounted utility (T=182): 4.145184
+VFI npz mean_discounted_utility: 5.653381
+Saved metadata + curves to /home/chiyuan/Huggett/results/pe_sac_H64_E32_U1000_lr3.00E-04_R10_rep5_s5.pkl
+Saved figure to /home/chiyuan/Huggett/results/pe_sac_H64_E32_U1000_lr3.00E-04_R10_rep5_s5_training_curve.pdf
+=== SAC repeat 7/10 (seed=6) ===
+update 1/1000  rollout_tail_disc (reset~uniform, H=64): -15.1100  mean_step_u -0.5717  ergodic_eval_mean_u(256p) 3.0784
+update 100/1000  rollout_tail_disc (reset~uniform, H=64): 21.1176  mean_step_u 0.4279  ergodic_eval_mean_u(256p) 3.4845
+update 200/1000  rollout_tail_disc (reset~uniform, H=64): 21.3890  mean_step_u 0.4638  ergodic_eval_mean_u(256p) 4.2715
+update 300/1000  rollout_tail_disc (reset~uniform, H=64): 23.5146  mean_step_u 0.5520  ergodic_eval_mean_u(256p) 4.7838
+update 400/1000  rollout_tail_disc (reset~uniform, H=64): 20.1288  mean_step_u 0.4348  ergodic_eval_mean_u(256p) 3.5232
+update 500/1000  rollout_tail_disc (reset~uniform, H=64): 24.4506  mean_step_u 0.5895  ergodic_eval_mean_u(256p) 4.5276
+update 600/1000  rollout_tail_disc (reset~uniform, H=64): 25.0832  mean_step_u 0.6241  ergodic_eval_mean_u(256p) 3.9135
+update 700/1000  rollout_tail_disc (reset~uniform, H=64): 22.5137  mean_step_u 0.5124  ergodic_eval_mean_u(256p) 4.5665
+update 800/1000  rollout_tail_disc (reset~uniform, H=64): 21.5582  mean_step_u 0.4984  ergodic_eval_mean_u(256p) 3.9443
+update 900/1000  rollout_tail_disc (reset~uniform, H=64): 21.8227  mean_step_u 0.5265  ergodic_eval_mean_u(256p) 4.5416
+update 1000/1000  rollout_tail_disc (reset~uniform, H=64): 25.3394  mean_step_u 0.5963  ergodic_eval_mean_u(256p) 4.1970
+SAC training wall time: 1341.1s
+Post-train eval (ergodic a,e + Markov r,w): mean discounted utility (T=182): 4.300646
+VFI npz mean_discounted_utility: 5.653381
+Saved metadata + curves to /home/chiyuan/Huggett/results/pe_sac_H64_E32_U1000_lr3.00E-04_R10_rep6_s6.pkl
+Saved figure to /home/chiyuan/Huggett/results/pe_sac_H64_E32_U1000_lr3.00E-04_R10_rep6_s6_training_curve.pdf
+=== SAC repeat 8/10 (seed=7) ===
+update 1/1000  rollout_tail_disc (reset~uniform, H=64): -4.8908  mean_step_u -0.2963  ergodic_eval_mean_u(256p) 3.4289
+update 100/1000  rollout_tail_disc (reset~uniform, H=64): 21.2538  mean_step_u 0.4797  ergodic_eval_mean_u(256p) 3.3827
+update 200/1000  rollout_tail_disc (reset~uniform, H=64): 25.9410  mean_step_u 0.6515  ergodic_eval_mean_u(256p) 4.1275
+update 300/1000  rollout_tail_disc (reset~uniform, H=64): 23.1615  mean_step_u 0.5346  ergodic_eval_mean_u(256p) 4.2842
+update 400/1000  rollout_tail_disc (reset~uniform, H=64): 24.0728  mean_step_u 0.5731  ergodic_eval_mean_u(256p) 4.4816
+update 500/1000  rollout_tail_disc (reset~uniform, H=64): 22.5991  mean_step_u 0.5159  ergodic_eval_mean_u(256p) 3.5596
+update 600/1000  rollout_tail_disc (reset~uniform, H=64): 22.6949  mean_step_u 0.4910  ergodic_eval_mean_u(256p) 4.7122
+update 700/1000  rollout_tail_disc (reset~uniform, H=64): 22.0995  mean_step_u 0.5042  ergodic_eval_mean_u(256p) 4.4813
+update 800/1000  rollout_tail_disc (reset~uniform, H=64): 23.4311  mean_step_u 0.5507  ergodic_eval_mean_u(256p) 4.8084
+update 900/1000  rollout_tail_disc (reset~uniform, H=64): 23.8332  mean_step_u 0.5227  ergodic_eval_mean_u(256p) 4.2952
+update 1000/1000  rollout_tail_disc (reset~uniform, H=64): 20.9320  mean_step_u 0.4892  ergodic_eval_mean_u(256p) 3.9412
+SAC training wall time: 1347.2s
+Post-train eval (ergodic a,e + Markov r,w): mean discounted utility (T=182): 4.319731
+VFI npz mean_discounted_utility: 5.653381
+Saved metadata + curves to /home/chiyuan/Huggett/results/pe_sac_H64_E32_U1000_lr3.00E-04_R10_rep7_s7.pkl
+Saved figure to /home/chiyuan/Huggett/results/pe_sac_H64_E32_U1000_lr3.00E-04_R10_rep7_s7_training_curve.pdf
+=== SAC repeat 9/10 (seed=8) ===
+update 1/1000  rollout_tail_disc (reset~uniform, H=64): -0.0241  mean_step_u -0.1321  ergodic_eval_mean_u(256p) 2.9681
+update 100/1000  rollout_tail_disc (reset~uniform, H=64): 22.2352  mean_step_u 0.4824  ergodic_eval_mean_u(256p) 3.8752
+update 200/1000  rollout_tail_disc (reset~uniform, H=64): 20.6972  mean_step_u 0.4623  ergodic_eval_mean_u(256p) 3.8004
+update 300/1000  rollout_tail_disc (reset~uniform, H=64): 24.5355  mean_step_u 0.6138  ergodic_eval_mean_u(256p) 4.5492
+update 400/1000  rollout_tail_disc (reset~uniform, H=64): 21.8013  mean_step_u 0.4753  ergodic_eval_mean_u(256p) 4.0699
+update 500/1000  rollout_tail_disc (reset~uniform, H=64): 22.5497  mean_step_u 0.5145  ergodic_eval_mean_u(256p) 4.4243
+update 600/1000  rollout_tail_disc (reset~uniform, H=64): 21.6432  mean_step_u 0.5037  ergodic_eval_mean_u(256p) 4.2463
+update 700/1000  rollout_tail_disc (reset~uniform, H=64): 20.5289  mean_step_u 0.4844  ergodic_eval_mean_u(256p) 4.3722
+update 800/1000  rollout_tail_disc (reset~uniform, H=64): 18.6977  mean_step_u 0.3883  ergodic_eval_mean_u(256p) 3.9192
+update 900/1000  rollout_tail_disc (reset~uniform, H=64): 23.0694  mean_step_u 0.5289  ergodic_eval_mean_u(256p) 4.8510
+update 1000/1000  rollout_tail_disc (reset~uniform, H=64): 18.8521  mean_step_u 0.4273  ergodic_eval_mean_u(256p) 4.4630
+SAC training wall time: 1331.0s
+Post-train eval (ergodic a,e + Markov r,w): mean discounted utility (T=182): 4.394596
+VFI npz mean_discounted_utility: 5.653381
+Saved metadata + curves to /home/chiyuan/Huggett/results/pe_sac_H64_E32_U1000_lr3.00E-04_R10_rep8_s8.pkl
+Saved figure to /home/chiyuan/Huggett/results/pe_sac_H64_E32_U1000_lr3.00E-04_R10_rep8_s8_training_curve.pdf
+=== SAC repeat 10/10 (seed=9) ===
+update 1/1000  rollout_tail_disc (reset~uniform, H=64): -7.3816  mean_step_u -0.3635  ergodic_eval_mean_u(256p) 3.3981
+update 100/1000  rollout_tail_disc (reset~uniform, H=64): 20.6569  mean_step_u 0.4193  ergodic_eval_mean_u(256p) 3.3252
+update 200/1000  rollout_tail_disc (reset~uniform, H=64): 19.1867  mean_step_u 0.4245  ergodic_eval_mean_u(256p) 3.8368
+update 300/1000  rollout_tail_disc (reset~uniform, H=64): 23.7239  mean_step_u 0.5535  ergodic_eval_mean_u(256p) 4.2774
+update 400/1000  rollout_tail_disc (reset~uniform, H=64): 21.5888  mean_step_u 0.4827  ergodic_eval_mean_u(256p) 4.1440
+update 500/1000  rollout_tail_disc (reset~uniform, H=64): 18.5050  mean_step_u 0.3970  ergodic_eval_mean_u(256p) 4.1767
+update 600/1000  rollout_tail_disc (reset~uniform, H=64): 22.8604  mean_step_u 0.5434  ergodic_eval_mean_u(256p) 4.3862
+update 700/1000  rollout_tail_disc (reset~uniform, H=64): 18.8084  mean_step_u 0.3971  ergodic_eval_mean_u(256p) 4.0296
+update 800/1000  rollout_tail_disc (reset~uniform, H=64): 22.6120  mean_step_u 0.5001  ergodic_eval_mean_u(256p) 4.6644
+update 900/1000  rollout_tail_disc (reset~uniform, H=64): 23.3381  mean_step_u 0.5524  ergodic_eval_mean_u(256p) 4.1720
+update 1000/1000  rollout_tail_disc (reset~uniform, H=64): 22.9455  mean_step_u 0.5536  ergodic_eval_mean_u(256p) 4.5359
+SAC training wall time: 1329.8s
+Post-train eval (ergodic a,e + Markov r,w): mean discounted utility (T=182): 4.367222
+VFI npz mean_discounted_utility: 5.653381
+Saved metadata + curves to /home/chiyuan/Huggett/results/pe_sac_H64_E32_U1000_lr3.00E-04_R10_rep9_s9.pkl
+Saved figure to /home/chiyuan/Huggett/results/pe_sac_H64_E32_U1000_lr3.00E-04_R10_rep9_s9_training_curve.pdf

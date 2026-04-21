@@ -1,0 +1,10 @@
+=== SAC repeat 1/10 (seed=0) ===
+update 1/500  rollout_tail_disc (reset~uniform, H=64): -19.7884  mean_step_u -0.7365  ergodic_eval_mean_u(256p) 3.9850
+update 50/500  rollout_tail_disc (reset~uniform, H=64): 15.7121  mean_step_u 0.2723  ergodic_eval_mean_u(256p) 2.4294
+update 100/500  rollout_tail_disc (reset~uniform, H=64): 19.2178  mean_step_u 0.3745  ergodic_eval_mean_u(256p) 3.8463
+update 150/500  rollout_tail_disc (reset~uniform, H=64): 18.8825  mean_step_u 0.3862  ergodic_eval_mean_u(256p) 4.1307
+update 200/500  rollout_tail_disc (reset~uniform, H=64): 19.6106  mean_step_u 0.4234  ergodic_eval_mean_u(256p) 4.1437
+update 250/500  rollout_tail_disc (reset~uniform, H=64): 20.5335  mean_step_u 0.4465  ergodic_eval_mean_u(256p) 4.4238
+update 300/500  rollout_tail_disc (reset~uniform, H=64): 22.9977  mean_step_u 0.5481  ergodic_eval_mean_u(256p) 4.1256
+update 350/500  rollout_tail_disc (reset~uniform, H=64): 24.8924  mean_step_u 0.6004  ergodic_eval_mean_u(256p) 3.9931
+Terminated
