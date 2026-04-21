@@ -2,7 +2,7 @@
 
 This repository is the **official implementation** accompanying the **DSPG** (Distribution-based Structural Policy Gradient) paper: the code here is what we use to reproduce the paper’s experiments and numerical results.
 
-**Paper figures and tables:** The [`figures/`](figures/) folder contains the **same materials that appear in the paper** — the exported **figure PDFs** (e.g. training curves, ablation and comparison plots) and the **LaTeX table fragments** actually `\input` in the manuscript (`pe_table.tex`, `pe_table_layout.tex`, plus the hyper-parameter appendix in `hyper-params.tex`). Plotting scripts may write or refresh some of these files when you regenerate results locally.
+**Paper figures and tables:** The [`figures_tables/`](figures_tables/) folder contains the **same materials that appear in the paper** — the exported **figure PDFs** (e.g. training curves, ablation and comparison plots) and the **LaTeX table fragments** actually `\input` in the manuscript (`pe_table.tex`, `pe_table_layout.tex`, plus the hyper-parameter appendix in `hyper-params.tex`). Plotting scripts may write or refresh some of these files when you regenerate results locally.
 
 Abbreviation **DSPG** stands for **Distribution-based Structural Policy Gradient** (emphasizes cross-sectional distributions over agents, not “distributional RL” over return distributions).
 
@@ -25,7 +25,7 @@ All Python modules live under [`dspg/`](dspg/); notebooks are in [`dspg/notebook
 |--------|-----------|
 | **Partial equilibrium (PE)** | [`dspg/pe_rl_env.py`](dspg/pe_rl_env.py), [`dspg/pe_dspg.py`](dspg/pe_dspg.py), baselines [`dspg/pe_ppo.py`](dspg/pe_ppo.py), [`dspg/pe_sac.py`](dspg/pe_sac.py), [`dspg/pe_ddpg.py`](dspg/pe_ddpg.py), [`dspg/pe_vfi.py`](dspg/pe_vfi.py) |
 | **General equilibrium (GE)** | Huggett-style bond economy with **bond supply \(B\)** and **market-clearing interest rate \(r\)** — [`dspg/notebooks/main.ipynb`](dspg/notebooks/main.ipynb), [`dspg/ablation_study.py`](dspg/ablation_study.py) |
-| **Paper figures & tables** | [`figures/`](figures/) — PDFs + `.tex` snippets as in the DSPG paper |
+| **Paper figures & tables** | [`figures_tables/`](figures_tables/) — PDFs + `.tex` snippets as in the DSPG paper |
 
 ## Requirements
 
@@ -38,7 +38,7 @@ pip install -r requirements.txt
 pip install "jax[cuda12]"   # example; pick the JAX extras that match your CUDA version
 ```
 
-Run scripts from the **repository root** so `results/` and `figures/` resolve correctly.
+Run scripts from the **repository root** so `results/` and `figures_tables/` resolve correctly.
 
 ---
 
@@ -94,7 +94,7 @@ Optional: [`dspg/notebooks/ablation_study.ipynb`](dspg/notebooks/ablation_study.
 
 ## Plotting (mostly PE comparisons)
 
-- [`dspg/plot_pe_training_comparison.py`](dspg/plot_pe_training_comparison.py): DSPG vs PPO / SAC / DDPG vs VFI on **PE** runs; writes PDFs and LaTeX under `figures/`. Default DSPG glob: `pe_dspg_bs64_*_R10.pkl`; legacy `pe_uspg_*` pickles are detected if present.
+- [`dspg/plot_pe_training_comparison.py`](dspg/plot_pe_training_comparison.py): DSPG vs PPO / SAC / DDPG vs VFI on **PE** runs; writes PDFs and LaTeX under `figures_tables/`. Default DSPG glob: `pe_dspg_bs64_*_R10.pkl`; legacy `pe_uspg_*` pickles are detected if present.
 
 - [`dspg/pe_plot.py`](dspg/pe_plot.py): DSPG training curve vs VFI (PE).
 
