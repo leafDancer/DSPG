@@ -2,13 +2,28 @@
 
 Code for **DSPG**, a distribution-based extension of structural policy-gradient ideas (building on structural reinforcement learning), applied here to heterogeneous-agent style environments.
 
+Abbreviation **DSPG** stands for **Distribution-based Structural Policy Gradient** (emphasizes cross-sectional distributions over agents, not “distributional RL” over return distributions).
+
+## References
+
+These papers motivate the structural / policy-gradient perspective used here:
+
+| Paper | Description |
+|--------|-------------|
+| **[Structural Reinforcement Learning for Heterogeneous Agent Macroeconomics](https://arxiv.org/abs/2512.18892)** (arXiv:2512.18892) | Introduces **structural reinforcement learning (SRL)** for HA models with equilibrium prices learned from simulation. |
+| **[Recurrent Structural Policy Gradient for Partially Observable Mean Field Games](https://arxiv.org/abs/2602.20141)** (arXiv:2602.20141) | Companion line of work on **recurrent structural policy gradient (RSPG)** and related algorithms; see the paper for MFAX and PO-MFG settings. |
+
+When citing prior structural RL ideas in publications, use the SRL reference above (and RSPG where relevant to your comparison).
+
+---
+
 All Python modules live under [`dspg/`](dspg/); notebooks are in [`dspg/notebooks/`](dspg/notebooks/).
 
-- **Partial equilibrium (PE)** experiments: [`dspg/pe_rl_env.py`](dspg/pe_rl_env.py), [`dspg/pe_dspg.py`](dspg/pe_dspg.py), baselines [`dspg/pe_ppo.py`](dspg/pe_ppo.py), [`dspg/pe_sac.py`](dspg/pe_sac.py), [`dspg/pe_ddpg.py`](dspg/pe_ddpg.py), and value-function iteration [`dspg/pe_vfi.py`](dspg/pe_vfi.py).
-- **Notebooks**: [`dspg/notebooks/main.ipynb`](dspg/notebooks/main.ipynb), [`dspg/notebooks/ablation_study.ipynb`](dspg/notebooks/ablation_study.ipynb).
-- **Figures / LaTeX snippets**: [`figures/`](figures/) — tables and hyper-parameter blocks for manuscripts.
-
-Abbreviation **DSPG** stands for **Distribution-based Structural Policy Gradient** (emphasizes cross-sectional distributions over agents, not “distributional RL” over return distributions).
+| Layer | Contents |
+|--------|-----------|
+| **Partial equilibrium (PE)** | [`dspg/pe_rl_env.py`](dspg/pe_rl_env.py), [`dspg/pe_dspg.py`](dspg/pe_dspg.py), baselines [`dspg/pe_ppo.py`](dspg/pe_ppo.py), [`dspg/pe_sac.py`](dspg/pe_sac.py), [`dspg/pe_ddpg.py`](dspg/pe_ddpg.py), [`dspg/pe_vfi.py`](dspg/pe_vfi.py) |
+| **General equilibrium (GE)** | Huggett-style bond economy with **bond supply \(B\)** and **market-clearing interest rate \(r\)** — [`dspg/notebooks/main.ipynb`](dspg/notebooks/main.ipynb), [`dspg/ablation_study.py`](dspg/ablation_study.py) |
+| **Figures / LaTeX** | [`figures/`](figures/) |
 
 ## Requirements
 
@@ -23,23 +38,27 @@ pip install "jax[cuda12]"   # example; pick the JAX extras that match your CUDA 
 
 Run scripts from the **repository root** so `results/` and `figures/` resolve correctly.
 
-## Quick start (PE environment)
+---
 
-1. Run VFI to produce `results/pe_vfi.npz`:
+## Quick start — partial equilibrium (PE)
+
+PE fixes **\((r,w)\)** exogenously (Markov over grids in [`PEEnv`](dspg/pe_rl_env.py)); use this block for [`pe_*`](dspg/) experiments and RL baselines on the PE environment.
+
+1. **VFI** (generates `results/pe_vfi.npz` — bounds / ground truth for DSPG and baselines):
 
    ```bash
    python -m dspg.pe_vfi --cuda 0
    ```
 
-2. Train DSPG on the PE environment:
+2. **DSPG** on PE:
 
    ```bash
    python -m dspg.pe_dspg --cuda 0
    ```
 
-   Outputs include pickles and PDFs under [`results/`](results/) with prefix `pe_dspg_`.
+   Outputs use the `pe_dspg_*` prefix under [`results/`](results/).
 
-3. Baselines (examples):
+3. **Baselines** (examples):
 
    ```bash
    python -m dspg.pe_ppo --cuda 0
@@ -49,24 +68,44 @@ Run scripts from the **repository root** so `results/` and `figures/` resolve co
 
 `--cuda` sets `CUDA_VISIBLE_DEVICES` to that GPU index.
 
-## Plotting
+---
 
-- [`dspg/plot_pe_training_comparison.py`](dspg/plot_pe_training_comparison.py): compares DSPG, PPO, SAC, DDPG, and VFI; writes PDFs and LaTeX snippets under `figures/`. Default glob for DSPG pickles is `pe_dspg_bs64_*_R10.pkl`; legacy `pe_uspg_*` files are detected automatically if present.
+## Quick start — general equilibrium (GE, “full” Huggett environment)
 
-- [`dspg/pe_plot.py`](dspg/pe_plot.py): DSPG-only training curve vs VFI with uncertainty band.
+GE solves for the **equilibrium interest rate** each period via **bond market clearing** (total bond supply **\(B\)**), with **productivity \(z\)** following a Markov process — the same qualitative block as the Huggett illustration in the SRL paper ([arXiv:2512.18892](https://arxiv.org/abs/2512.18892)). In this repository you can run it in two ways:
+
+### 1. Notebook (interactive)
+
+Open [`dspg/notebooks/main.ipynb`](dspg/notebooks/main.ipynb), set `CUDA_VISIBLE_DEVICES` in the first code cell if needed, and run all cells **with the repository root as the Jupyter working directory** so paths such as `results/` resolve correctly.
+
+### 2. Script (batch sizes / epochs from CLI)
+
+[`dspg/ablation_study.py`](dspg/ablation_study.py) trains the GE Huggett DSPG setup and writes pickles under `results/`, e.g. `DSPG_bs{batch_size}_lr{lr}_ep{epoch}.pkl`:
+
+```bash
+python -m dspg.ablation_study --cuda 0 --batch_size 64 --epoch 1000 --lr 2e-3
+```
+
+Optional: [`dspg/notebooks/ablation_study.ipynb`](dspg/notebooks/ablation_study.ipynb) reproduces ablation-style figures using saved `results/DSPG_*.pkl` files.
+
+---
+
+## Plotting (mostly PE comparisons)
+
+- [`dspg/plot_pe_training_comparison.py`](dspg/plot_pe_training_comparison.py): DSPG vs PPO / SAC / DDPG vs VFI on **PE** runs; writes PDFs and LaTeX under `figures/`. Default DSPG glob: `pe_dspg_bs64_*_R10.pkl`; legacy `pe_uspg_*` pickles are detected if present.
+
+- [`dspg/pe_plot.py`](dspg/pe_plot.py): DSPG training curve vs VFI (PE).
 
 ```bash
 python -m dspg.plot_pe_training_comparison
 python -m dspg.pe_plot --pattern 'pe_dspg_bs64_*_R10.pkl'
 ```
 
+---
+
 ## Results directory
 
-[`results/`](results/) may contain logs, pickles (`.pkl`), NumPy archives, and PDFs from training runs. Repositories cloned without large artifacts may need to re-run experiments locally to regenerate curves.
-
-## Structural RL connection
-
-DSPG extends ideas from structural reinforcement learning to operate explicitly on cross-sectional distributions; cite your preferred reference to the prior structural RL work when publishing.
+[`results/`](results/) may contain logs, pickles (`.pkl`), NumPy archives, and PDFs from training runs. Fresh clones without these files need to re-run PE/GE experiments locally.
 
 ## License
 
