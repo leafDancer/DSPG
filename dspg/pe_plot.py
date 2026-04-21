@@ -1,6 +1,11 @@
 """
-Load one or more PE DSPG pickle files (same experiment tag) and plot mean ± 96% band vs VFI.
-Pass --pattern to glob under results_dir (single run: one file; multiple: concatenated by shard_id if present, else sorted path order).
+Plot DSPG training curves from pickle outputs vs VFI ground truth (partial equilibrium).
+
+Reads shards matching ``--pattern`` under ``REPO_ROOT / results_dir``; if several files share
+``config["shard_id"]``, their ``cumulative_reward_per_epoch`` rows are stacked. For a single
+run, one matching ``.pkl`` is enough.
+
+**Run (from repo root):** ``python -m dspg.pe_plot``; use ``--pattern`` and ``--out`` as needed.
 """
 from __future__ import annotations
 
@@ -85,7 +90,7 @@ def resolve_pattern(results_dir: Path, pattern: str) -> str:
 
 
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Plot DSPG training curves vs VFI from pickles.")
     parser.add_argument(
         "--results_dir",
         type=str,

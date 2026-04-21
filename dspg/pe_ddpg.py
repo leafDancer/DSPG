@@ -7,6 +7,8 @@ targets, and the same pickle keys for plot_pe_training_comparison.py.
 Actor: deterministic cshare in (0, 1) via 0.5*(tanh(z)+1). Exploration: Gaussian noise on the
 deterministic action (linear decay of std over training). Twin Q critics; TD target uses min
 of the two target Qs; actor maximizes Q1(s, pi(s)).
+
+**Run:** ``python -m dspg.pe_ddpg --cuda 0`` (requires ``results/pe_vfi.npz``).
 """
 from __future__ import annotations
 
@@ -248,7 +250,7 @@ class ReplayBuffer:
 
 
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Train DDPG on PEEnv (deterministic actor + twin Q).")
     parser.add_argument("--cuda", type=str, default=DEFAULT_CUDA)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument(

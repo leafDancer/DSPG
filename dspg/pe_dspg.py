@@ -7,6 +7,11 @@ Training still uses adaptive g0 (ergodic during warmup, then previous epoch's fi
 training curve uses a separate evaluation (same T-step discounted U under fixed ergodic g) only
 every ``eval_every`` epochs (plus the first and last epoch); intervening entries are forward-filled
 from the last evaluation so array shape stays (repeats, epochs).
+
+**Prerequisites:** run ``python -m dspg.pe_vfi`` first to create ``results/pe_vfi.npz`` (or the same
+file under a custom ``--results_dir``).
+
+**Run (from repo root):** ``python -m dspg.pe_dspg --cuda 0``; use ``--help`` for batch size, epochs, etc.
 """
 from __future__ import annotations
 
@@ -171,8 +176,9 @@ def run_train_step_profile(
     )
 
 
+# --- CLI: PE DSPG training (multiple repeats); see module docstring for prerequisites. ---
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Train DSPG on PEEnv with VFI-derived bounds.")
     parser.add_argument("--batch_size", type=int, default=DEFAULT_BATCH)
     parser.add_argument("--epoch", type=int, default=DEFAULT_EPOCHS)
     parser.add_argument("--repeats", type=int, default=10)
@@ -245,6 +251,7 @@ def main():
     if opt_c.shape != (NA, ne, nr, nw):
         raise ValueError(f"opt_c shape {opt_c.shape} != ({NA}, {ne}, {nr}, {nw})")
 
+    # --- VFI upper bound and offset: build admissible consumption levels on the (a,e) grid ---
     # Marginal reference policy over (r,w): mean for IID / no nr*nw output head
     opt_c_marg = jnp.mean(opt_c, axis=(2, 3))
     diffs = jnp.diff(opt_c_marg, axis=0)
@@ -274,6 +281,7 @@ def main():
     if eval_every <= 0:
         eval_every = 1
 
+    # --- Policy network: 1D U-Net on cross-sectional g; consumption is cum-sigmoid on (a,e) only ---
     activation = jax.nn.leaky_relu
     pool = hk.AvgPool
 
@@ -369,6 +377,7 @@ def main():
             return True
         return (ep + 1) % eval_every == 0
 
+    # Outer loop over independent seeds / runs; each constructs its own Haiku params.
     for rep in range(n_repeats):
         print(f"=== DSPG repeat {rep + 1}/{n_repeats} ===", flush=True)
         forward = hk.without_apply_rng(hk.transform(forward_fn))

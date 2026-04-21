@@ -8,6 +8,8 @@ Policy: squashed Gaussian to cshare in (0, 1) (tanh + affine) for stable SAC rep
 PPO uses Beta — eval uses deterministic mean action (tanh(mu) mapped to [0,1]).
 
 Training transitions use PEEnv.reset()-style starts (uniform), same as PPO.
+
+**Run:** ``python -m dspg.pe_sac --cuda 0`` (requires ``results/pe_vfi.npz``).
 """
 from __future__ import annotations
 
@@ -281,7 +283,7 @@ class ReplayBuffer:
 
 
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Train SAC on PEEnv (squashed Gaussian policy).")
     parser.add_argument("--cuda", type=str, default=DEFAULT_CUDA)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument(

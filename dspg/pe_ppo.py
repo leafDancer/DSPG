@@ -16,6 +16,8 @@ Training log metric `mean_disc_return_tail` (stored as curve_mean_discounted_ret
   (not necessarily a full episode of T; episodes reset on trunc). Initial states come from
   PEEnv.reset(): a ~ Uniform[a_min,a_max], e,r,w each uniform on discrete indices — NOT ergodic_g.
   Printed alongside an ergodic-based eval (fewer MC paths) when --log_ergodic_eval_paths > 0.
+
+**Run:** ``python -m dspg.pe_ppo --cuda 0`` (requires ``results/pe_vfi.npz`` from ``dspg.pe_vfi``).
 """
 from __future__ import annotations
 
@@ -273,7 +275,7 @@ def beta_entropy(a_p: jnp.ndarray, b_p: jnp.ndarray) -> jnp.ndarray:
 
 
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Train PPO on PEEnv (Beta policy head).")
     parser.add_argument("--cuda", type=str, default=DEFAULT_CUDA)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument(

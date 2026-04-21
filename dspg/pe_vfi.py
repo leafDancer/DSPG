@@ -1,7 +1,12 @@
 """
-Value function iteration for the partial-equilibrium environment in pe_rl_env.py.
-State: (a, e_idx, r_idx, w_idx); wealth = (1+r)*a + e*w; matches PEEnv.step dynamics.
-CLI defaults align with ablation_study.py (CUDA device, etc.).
+Value function iteration for the partial-equilibrium ``PEEnv`` in ``dspg.pe_rl_env``.
+
+State: ``(a, e_idx, r_idx, w_idx)``; cash-on-hand ``(1+r)*a + e*w``; policy and V match
+``PEEnv`` one-step dynamics. Writes ``pe_vfi.npz`` (and a small ``pe_vfi_meta.pkl``) under
+``REPO_ROOT / "results"`` for use by ``pe_dspg`` and RL baselines.
+
+**Run (from repo root):** ``python -m dspg.pe_vfi --cuda 0``; use ``--burn_in`` to set MC warm-up
+(Monte Carlo block in the same script; see source for options).
 """
 import argparse
 import os
@@ -31,8 +36,9 @@ DEFAULT_MC_BURN_IN = 8000
 MC_WEALTH_DIAG_EVERY = 10
 
 
+# --- VFI on the (a, e, r, w) tensor grid + Monte Carlo diagnostics; writes ``results/pe_vfi.npz``. ---
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Run VFI for PEEnv and write results/pe_vfi.npz.")
     parser.add_argument("--cuda", type=str, default="5", help="CUDA device id (same default as ablation_study)")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument(

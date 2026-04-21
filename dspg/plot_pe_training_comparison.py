@@ -1,13 +1,16 @@
 """
-PE training comparison: VFI, DSPG, PPO, SAC, DDPG (when pkls are present).
+PE training comparison: VFI, DSPG, PPO, SAC, DDPG when the corresponding pickles exist under
+``results/``.
 
-DSPG: fixed-ergodic-g eval epochs. PPO / SAC / DDPG share pickle keys ``curve_log_update_indices``
-and ``curve_ergodic_mean_discounted_u_at_log``. Bands: ±1.96·std across runs (Z_BAND).
+**DSPG** curves use epoch-indexed utilities from ``cumulative_reward_per_epoch`` (fixed ergodic-g
+evaluation schedule). **PPO / SAC / DDPG** pickles share keys ``curve_log_update_indices`` and
+``curve_ergodic_mean_discounted_u_at_log``. Shaded bands use ``Z_BAND`` times the cross-run std.
 
-Output PDF under figures_tables/. Writes ``pe_table.tex`` (standalone table) and
-``pe_table_layout.tex`` (left table + right training-curve PDF in one ``figure``).
+Writes a comparison PDF plus LaTeX snippets under ``figures_tables/`` (``pe_table.tex``,
+``pe_table_layout.tex``).
 
-Run: python plot_pe_training_comparison.py
+**Run (from repo root):** ``python -m dspg.plot_pe_training_comparison``; override globs with
+``--dspg_glob``, ``--ppo_glob``, etc., if your filenames differ.
 """
 from __future__ import annotations
 
@@ -23,6 +26,7 @@ import numpy as np
 
 from dspg.repo_paths import REPO_ROOT
 
+# Multiplier for cross-run std in shaded bands (not necessarily 1.96; tune for paper figures).
 Z_BAND = 1.00
 
 # Distinct plot markers (DSPG / PPO / SAC / DDPG must all differ)
@@ -348,7 +352,9 @@ def set_styles():
 
 
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description="Combine PE DSPG / PPO / SAC / DDPG / VFI pickles into one figure and LaTeX tables."
+    )
     parser.add_argument("--results_dir", type=str, default="results")
     parser.add_argument(
         "--dspg_glob",

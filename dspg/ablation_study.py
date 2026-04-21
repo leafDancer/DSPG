@@ -1,7 +1,21 @@
+"""
+Huggett general-equilibrium (GE) trainer: bond supply ``B``, Markov TFP ``z``, bond-market clearing
+for ``r``, U-Net policy on the cross-sectional distribution ``g``.
+
+**Important:** ``argparse`` runs at import time so ``--cuda`` sets ``CUDA_VISIBLE_DEVICES`` before
+JAX is imported. Do not move the ``parse_args()`` block below the JAX imports without revisiting
+that ordering.
+
+**Run (from repo root):** ``python -m dspg.ablation_study --cuda 0 --batch_size 64 --epoch 1000``.
+
+Outputs pickled training histories under ``results/DSPG_bs{...}_lr{...}_ep{...}.pkl``.
+"""
 
 import argparse
 ##################
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(
+    description="GE Huggett DSPG trainer (parses at import time so CUDA is set before JAX)."
+)
 parser.add_argument('--batch_size', type=int, default=64, help='Batch size for training')
 parser.add_argument('--epoch', type=int, default=1000, help='Number of epochs for training')
 parser.add_argument('--cuda', type=str, default='5', help='CUDA device id')
