@@ -8,18 +8,18 @@ Abbreviation **DSPG** stands for **Distribution-based Structural Policy Gradient
 
 ## References
 
-These papers motivate the structural / policy-gradient perspective used here:
+The **DSPG** paper does not appear in isolation: it **builds directly on** the two lines of work below. Taken together, they supply the **structural reinforcement learning** viewpoint and the **structural policy-gradient** machinery that DSPG extends to **distribution-based** updates on cross-sectional masses. Treat them as the **conceptual and methodological foundation** for this repository and the DSPG manuscript.
 
-| Paper | Description |
-|--------|-------------|
-| **[Structural Reinforcement Learning for Heterogeneous Agent Macroeconomics](https://arxiv.org/abs/2512.18892)** (arXiv:2512.18892) | Introduces **structural reinforcement learning (SRL)** for HA models with equilibrium prices learned from simulation. |
-| **[Recurrent Structural Policy Gradient for Partially Observable Mean Field Games](https://arxiv.org/abs/2602.20141)** (arXiv:2602.20141) | Companion line of work on **recurrent structural policy gradient (RSPG)** and related algorithms; see the paper for MFAX and PO-MFG settings. |
+| Paper | How it relates to DSPG |
+|--------|-------------------------|
+| **[Structural Reinforcement Learning for Heterogeneous Agent Macroeconomics](https://arxiv.org/abs/2512.18892)** (arXiv:2512.18892) | **Foundation for structural RL (SRL)** in heterogeneous-agent macro—equilibrium objects from simulation, HA environments with learned prices—on which GE experiments here are aligned. |
+| **[Recurrent Structural Policy Gradient for Partially Observable Mean Field Games](https://arxiv.org/abs/2602.20141)** (arXiv:2602.20141) | **Foundation for structural policy-gradient methods** under **recurrent structural policy gradient (RSPG)** and related algorithms (see that paper for MFAX / PO-MFG); DSPG inherits this policy-gradient-through-simulation paradigm in a distribution-based form. |
 
-When citing prior structural RL ideas in publications, use the SRL reference above (and RSPG where relevant to your comparison).
+When you cite prior structural RL or structural policy-gradient ideas alongside DSPG, point readers to **SRL** first for the HA macro setup, and to **RSPG** where comparisons or recurrent / gradient formalism matter.
 
 ---
 
-All Python modules live under [`dspg/`](dspg/); notebooks are in [`dspg/notebooks/`](dspg/notebooks/).
+All Python modules live under [`dspg/`](dspg/); notebooks are in [`dspg/notebooks/`](dspg/notebooks/). **Extended docs** (architecture, per-module reference, notebooks and artifacts): see [`docs/README.md`](docs/README.md).
 
 | Layer | Contents |
 |--------|-----------|
