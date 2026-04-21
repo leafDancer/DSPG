@@ -1,6 +1,8 @@
 # DSPG: Distribution-based Structural Policy Gradient
 
-Code for **DSPG**, a distribution-based extension of structural policy-gradient ideas (building on structural reinforcement learning), applied here to heterogeneous-agent style environments.
+This repository is the **official implementation** accompanying the **DSPG** (Distribution-based Structural Policy Gradient) paper: the code here is what we use to reproduce the paper’s experiments and numerical results.
+
+**Paper figures and tables:** The [`figures/`](figures/) folder contains the **same materials that appear in the paper** — the exported **figure PDFs** (e.g. training curves, ablation and comparison plots) and the **LaTeX table fragments** actually `\input` in the manuscript (`pe_table.tex`, `pe_table_layout.tex`, plus the hyper-parameter appendix in `hyper-params.tex`). Plotting scripts may write or refresh some of these files when you regenerate results locally.
 
 Abbreviation **DSPG** stands for **Distribution-based Structural Policy Gradient** (emphasizes cross-sectional distributions over agents, not “distributional RL” over return distributions).
 
@@ -23,7 +25,7 @@ All Python modules live under [`dspg/`](dspg/); notebooks are in [`dspg/notebook
 |--------|-----------|
 | **Partial equilibrium (PE)** | [`dspg/pe_rl_env.py`](dspg/pe_rl_env.py), [`dspg/pe_dspg.py`](dspg/pe_dspg.py), baselines [`dspg/pe_ppo.py`](dspg/pe_ppo.py), [`dspg/pe_sac.py`](dspg/pe_sac.py), [`dspg/pe_ddpg.py`](dspg/pe_ddpg.py), [`dspg/pe_vfi.py`](dspg/pe_vfi.py) |
 | **General equilibrium (GE)** | Huggett-style bond economy with **bond supply \(B\)** and **market-clearing interest rate \(r\)** — [`dspg/notebooks/main.ipynb`](dspg/notebooks/main.ipynb), [`dspg/ablation_study.py`](dspg/ablation_study.py) |
-| **Figures / LaTeX** | [`figures/`](figures/) |
+| **Paper figures & tables** | [`figures/`](figures/) — PDFs + `.tex` snippets as in the DSPG paper |
 
 ## Requirements
 
